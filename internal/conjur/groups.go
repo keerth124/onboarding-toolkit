@@ -3,8 +3,10 @@ package conjur
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 	"path/filepath"
+	"strings"
+
+	"github.com/cyberark/conjur-onboard/internal/core"
 )
 
 // GroupMemberBody is the JSON body for POST /api/groups/{id}/members.
@@ -18,30 +20,23 @@ type GroupMemberBody struct {
 func writeGroupMembersArtifact(authnName string, hosts []WorkloadHost, cfg GenerateConfig) (string, error) {
 	groupID := appsGroupID(authnName)
 
-	destDir := filepath.Join(cfg.WorkDir, "api")
-	if err := os.MkdirAll(destDir, 0o755); err != nil {
-		return "", fmt.Errorf("creating api dir: %w", err)
-	}
-
-	path := filepath.Join(destDir, "03-add-group-members.jsonl")
-	f, err := os.Create(path)
-	if err != nil {
-		return "", fmt.Errorf("creating group members file: %w", err)
-	}
-	defer f.Close()
-
-	enc := json.NewEncoder(f)
-	enc.SetEscapeHTML(false)
-
+	var sb strings.Builder
 	for _, h := range hosts {
 		entry := GroupMemberBody{
 			ID:   h.FullPath,
 			Kind: "workload",
 		}
-		if err := enc.Encode(entry); err != nil {
+		data, err := json.Marshal(entry)
+		if err != nil {
 			return "", fmt.Errorf("encoding group member: %w", err)
 		}
+		sb.Write(data)
+		sb.WriteByte('\n')
 	}
 
+	destDir := filepath.Join(cfg.WorkDir, "api")
+	if err := core.WriteText(destDir, "03-add-group-members.jsonl", sb.String()); err != nil {
+		return "", fmt.Errorf("writing group members artifact: %w", err)
+	}
 	return groupID, nil
 }

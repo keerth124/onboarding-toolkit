@@ -33,8 +33,8 @@ All generated artifacts are written to the working directory for review.
 By default, express mode generates artifacts and prompts before applying.
 Pass --apply to apply automatically without prompting.
 
-Using recommended claims: 'repository', 'environment'. These bind workload
-identity to the repo and deployment environment. To customize, re-run with:
+Using recommended primary identity claim: 'repository'. Environment claims are
+reported for review but not enforced by the MVP generator. To customize, re-run with:
   conjur-onboard github discover --org <org>
   conjur-onboard github generate --tenant <tenant> [custom flags]
 
@@ -49,12 +49,9 @@ Examples:
 				return fmt.Errorf("--tenant is required")
 			}
 
-			tok := token
-			if tok == "" {
-				tok = os.Getenv("GITHUB_TOKEN")
-			}
-			if tok == "" {
-				return fmt.Errorf("GitHub token required: pass --token or set GITHUB_TOKEN")
+			tok, err := resolveGitHubToken(cmd.Context(), token)
+			if err != nil {
+				return err
 			}
 
 			wd, err := core.EnsureWorkDir(*sf.workDir)
@@ -80,7 +77,7 @@ Examples:
 
 			// ── Step 2: Generate ─────────────────────────────────────────────
 			fmt.Println("==> Step 2/3: Generating Conjur API artifacts...")
-			fmt.Println("    Using recommended claims: 'repository', 'environment'")
+			fmt.Println("    Using recommended primary identity claim: 'repository'")
 			gcfg := conjur.GenerateConfig{
 				Discovery:     disc,
 				Tenant:        tenant,
@@ -123,6 +120,16 @@ Examples:
 			loadedPlan, err := core.LoadPlan(wd)
 			if err != nil {
 				return fmt.Errorf("loading plan: %w", err)
+			}
+
+			if _, err := core.Validate(cmd.Context(), core.ValidateConfig{
+				WorkDir: wd,
+				Plan:    loadedPlan,
+				Client:  client,
+				DryRun:  *sf.dryRun,
+				Verbose: *sf.verbose,
+			}); err != nil {
+				return fmt.Errorf("validate before apply: %w", err)
 			}
 
 			acfg := core.ApplyConfig{

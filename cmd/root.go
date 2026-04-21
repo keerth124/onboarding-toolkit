@@ -18,7 +18,7 @@ var (
 
 var rootCmd = &cobra.Command{
 	Use:   "conjur-onboard",
-	Short: "Conjur Onboarding Toolkit — onboard CI/CD workloads to Secrets Manager SaaS",
+	Short: "Conjur Onboarding Toolkit - onboard CI/CD workloads to Secrets Manager SaaS",
 	Long: `Conjur Onboarding Toolkit (COT) helps you onboard CI/CD workloads to
 CyberArk Secrets Manager SaaS (Conjur Cloud) by discovering your platform
 configuration, generating the required API calls, and applying them to your tenant.
@@ -30,7 +30,9 @@ Examples:
   conjur-onboard github express --org acme-corp --tenant myco
 
   conjur-onboard github discover --org acme-corp
+  conjur-onboard github inspect --repo acme-corp/api-service
   conjur-onboard github generate --tenant myco
+  conjur-onboard github validate --tenant myco --username admin
   conjur-onboard github apply --tenant myco`,
 	Version: "0.1.0",
 }

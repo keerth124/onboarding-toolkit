@@ -33,12 +33,16 @@ Recommended flow:
 
 Step-by-step:
   conjur-onboard github discover --org <org>
+  conjur-onboard github inspect  --repo <org>/<repo>
   conjur-onboard github generate --tenant <subdomain>
+  conjur-onboard github validate --tenant <subdomain>
   conjur-onboard github apply    --tenant <subdomain>`,
 	}
 
 	cmd.AddCommand(newDiscoverCmd(sf))
+	cmd.AddCommand(newInspectCmd(sf))
 	cmd.AddCommand(newGenerateCmd(sf))
+	cmd.AddCommand(newValidateCmd(sf))
 	cmd.AddCommand(newApplyCmd(sf))
 	cmd.AddCommand(newExpressCmd(sf))
 

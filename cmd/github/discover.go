@@ -2,7 +2,6 @@ package github
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/cyberark/conjur-onboard/internal/core"
 	ghdisc "github.com/cyberark/conjur-onboard/internal/github"
@@ -29,12 +28,9 @@ Examples:
 				return fmt.Errorf("--org is required")
 			}
 
-			tok := token
-			if tok == "" {
-				tok = os.Getenv("GITHUB_TOKEN")
-			}
-			if tok == "" {
-				return fmt.Errorf("GitHub token required: pass --token or set GITHUB_TOKEN")
+			tok, err := resolveGitHubToken(cmd.Context(), token)
+			if err != nil {
+				return err
 			}
 
 			wd, err := core.EnsureWorkDir(*sf.workDir)

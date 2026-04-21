@@ -34,12 +34,12 @@ Examples:
 			if tenant == "" {
 				return fmt.Errorf("--tenant is required")
 			}
-			if username == "" {
+			if username == "" && !*sf.dryRun {
 				return fmt.Errorf("--username is required")
 			}
 
 			apiKey := os.Getenv("CONJUR_API_KEY")
-			if apiKey == "" {
+			if apiKey == "" && !*sf.dryRun {
 				return fmt.Errorf("CONJUR_API_KEY environment variable is required")
 			}
 
@@ -53,9 +53,12 @@ Examples:
 				return fmt.Errorf("loading plan.json: %w (run 'generate' first)", err)
 			}
 
-			client, err := conjur.NewClient(tenant, username, apiKey, *sf.verbose)
-			if err != nil {
-				return fmt.Errorf("conjur client: %w", err)
+			var client core.APIClient
+			if !*sf.dryRun {
+				client, err = conjur.NewClient(tenant, username, apiKey, *sf.verbose)
+				if err != nil {
+					return fmt.Errorf("conjur client: %w", err)
+				}
 			}
 
 			acfg := core.ApplyConfig{
