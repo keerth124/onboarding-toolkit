@@ -319,7 +319,7 @@ The per-`type` body contract is:
 
 The API auto-creates the `conjur/<authn-type>/<authn-name>/apps` group when the authenticator is created; COT does not generate this group. COT must create the actual workload resources at the path appropriate to the authenticator type.
 
-**For JWT authenticators**, workloads live at `<identity_path>/<workload-id>`. Workload `id` matches the `token_app_property` claim value. No annotations required by the authenticator itself, but the generator may add annotations for operator readability.
+**For JWT authenticators**, workloads live at `<identity_path>/<workload-id>`. Workload `id` matches the `token_app_property` claim value. The generator also emits JWT claim annotations on each workload using the `authn-jwt/<authenticator-name>/<claim>` key shape, including the selected `token_app_property` claim and any `enforced_claims`, so the generated policy is explicit and compatible with Conjur JWT claim matching.
 
 **For cloud IAM authenticators**, workloads require identity-proving annotations:
 
@@ -878,7 +878,7 @@ Analogous configurations are generated for GCP and Azure variants using the appr
 
 **Acceptance criteria:**
 - Generated `api/01-create-authenticator.json` is a valid body for `POST /api/authenticators` with `type: jwt`, `subtype: github_actions`, a sanitized `name` derived from the org, and a `data.identity` object containing `token_app_property`, `identity_path`, and any enforced claims.
-- Generated `api/02-workloads.yml` is a policy YAML fragment creating one workload per repo (and per environment where applicable) at the authenticator's `identity_path`.
+- Generated `api/02-workloads.yml` is a policy YAML fragment creating one workload per repo (and per environment where applicable) at the authenticator's `identity_path`, with JWT annotations such as `authn-jwt/github-<org>/repository: <owner>/<repo>`.
 - Generated `api/03-add-group-members.jsonl` contains one JSON line per workload, each suitable as a body for `POST /api/groups/{url-encoded-apps-group-id}/members` with `kind: workload` and the workload's full path as `id`.
 - `api/plan.json` lists all calls in execution order with method, path, and expected success response code per call.
 - When `apply` runs successfully, the authenticator, workloads, and group memberships all exist on the tenant, verifiable via GET calls on each resource.

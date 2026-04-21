@@ -37,6 +37,14 @@ func TestGenerateUsesClaimAnalysisSelection(t *testing.T) {
 	if len(body.Data.Identity.EnforcedClaims) != 0 {
 		t.Fatalf("enforced_claims = %#v, want empty", body.Data.Identity.EnforcedClaims)
 	}
+
+	workloadPolicy, err := os.ReadFile(filepath.Join(workDir, "api", "02-workloads.yml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(workloadPolicy), "authn-jwt/github-acme/repository: acme/api") {
+		t.Fatalf("workload policy missing repository JWT annotation:\n%s", string(workloadPolicy))
+	}
 }
 
 func TestGenerateRejectsUnsupportedClaimSelection(t *testing.T) {

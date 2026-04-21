@@ -12,6 +12,8 @@ JWT authenticator.
   owner.
 - Generates a GitHub Actions JWT authenticator body.
 - Generates Conjur workload policy YAML for discovered repositories.
+- Adds JWT claim annotations to generated workloads, including the GitHub
+  `repository` claim used by the authenticator.
 - Generates group membership API bodies for the authenticator `apps` group.
 - Supports two GitHub provisioning modes:
   - `bootstrap`: create the GitHub authenticator, workloads, and memberships.

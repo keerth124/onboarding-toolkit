@@ -3,6 +3,7 @@ package conjur
 import (
 	"fmt"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/cyberark/conjur-onboard/internal/core"
@@ -11,27 +12,34 @@ import (
 
 // WorkloadHost represents a single !host entry in the policy YAML.
 type WorkloadHost struct {
-	FullPath string // e.g. "data/github-apps/acme-corp/acme-corp/api-service"
-	HostID   string // relative to the policy branch, e.g. "acme-corp/api-service"
+	FullPath    string            // e.g. "data/github-apps/acme-corp/acme-corp/api-service"
+	HostID      string            // relative to the policy branch, e.g. "acme-corp/api-service"
+	Annotations map[string]string // JWT claim annotations used by the authenticator.
 }
 
 // buildWorkloads returns the list of workload hosts to create based on discovery.
-func buildWorkloads(disc *ghdisc.DiscoveryResult) []WorkloadHost {
+func buildWorkloads(disc *ghdisc.DiscoveryResult, authnName string, selection ghdisc.ClaimSelection) []WorkloadHost {
 	identPath := identityPath(disc.Org)
 	var hosts []WorkloadHost
 
 	for _, repo := range disc.Repos {
+		annotations := map[string]string{}
+		if selection.TokenAppProperty == "repository" {
+			annotations[jwtAnnotationKey(authnName, "repository")] = repo.FullName
+		}
+
 		hosts = append(hosts, WorkloadHost{
-			FullPath: workloadID(identPath, repo.FullName, ""),
-			HostID:   repo.FullName,
+			FullPath:    workloadID(identPath, repo.FullName, ""),
+			HostID:      repo.FullName,
+			Annotations: annotations,
 		})
 	}
 	return hosts
 }
 
 // writeWorkloadPolicyArtifact writes 02-workloads.yml.
-func writeWorkloadPolicyArtifact(disc *ghdisc.DiscoveryResult, cfg GenerateConfig) ([]WorkloadHost, error) {
-	hosts := buildWorkloads(disc)
+func writeWorkloadPolicyArtifact(disc *ghdisc.DiscoveryResult, cfg GenerateConfig, authnName string, selection ghdisc.ClaimSelection) ([]WorkloadHost, error) {
+	hosts := buildWorkloads(disc, authnName, selection)
 	identPath := identityPath(disc.Org)
 
 	var sb strings.Builder
@@ -44,6 +52,7 @@ func writeWorkloadPolicyArtifact(disc *ghdisc.DiscoveryResult, cfg GenerateConfi
 	for _, h := range hosts {
 		sb.WriteString("    - !host\n")
 		sb.WriteString(fmt.Sprintf("      id: %s\n", h.HostID))
+		writeAnnotations(&sb, h.Annotations)
 	}
 
 	destDir := filepath.Join(cfg.WorkDir, "api")
@@ -52,4 +61,24 @@ func writeWorkloadPolicyArtifact(disc *ghdisc.DiscoveryResult, cfg GenerateConfi
 	}
 
 	return hosts, nil
+}
+
+func writeAnnotations(sb *strings.Builder, annotations map[string]string) {
+	if len(annotations) == 0 {
+		return
+	}
+	keys := make([]string, 0, len(annotations))
+	for key := range annotations {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+
+	sb.WriteString("      annotations:\n")
+	for _, key := range keys {
+		sb.WriteString(fmt.Sprintf("        %s: %s\n", key, annotations[key]))
+	}
+}
+
+func jwtAnnotationKey(authnName string, claim string) string {
+	return fmt.Sprintf("authn-jwt/%s/%s", authnName, claim)
 }

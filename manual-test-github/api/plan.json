@@ -1,0 +1,67 @@
+{
+  "version": "v1alpha1",
+  "platform": "github",
+  "tenant": "my-tenant",
+  "authenticator_type": "jwt",
+  "authenticator_name": "github-keerth124",
+  "provisioning_mode": "bootstrap",
+  "apps_group_id": "conjur%2Fauthn-jwt%2Fgithub-keerth124%2Fapps",
+  "identity_path": "data/github-apps/keerth124",
+  "workload_count": 1,
+  "operations": [
+    {
+      "id": "create-authenticator",
+      "description": "Create GitHub Actions JWT authenticator",
+      "method": "POST",
+      "path": "/api/authenticators",
+      "body_file": "api/01-create-authenticator.json",
+      "content_type": "application/json",
+      "expected_status": [
+        200,
+        201
+      ],
+      "idempotent_on": [
+        409
+      ],
+      "metadata": {
+        "authenticator_name": "github-keerth124"
+      }
+    },
+    {
+      "id": "load-workload-policy",
+      "description": "Create GitHub workload identities under the authenticator identity path",
+      "method": "POST",
+      "path": "/policies/conjur/policy/root",
+      "body_file": "api/02-workloads.yml",
+      "content_type": "application/x-yaml",
+      "expected_status": [
+        200,
+        201
+      ],
+      "metadata": {
+        "workload_ids": "data/github-apps/keerth124/keerth124/onboarding-toolkit"
+      }
+    },
+    {
+      "id": "add-group-member-001",
+      "description": "Add workload to authenticator apps group",
+      "method": "POST",
+      "path": "/api/groups/conjur%2Fauthn-jwt%2Fgithub-keerth124%2Fapps/members",
+      "body_file": "api/03-add-group-members.jsonl",
+      "body_line": 1,
+      "content_type": "application/json",
+      "expected_status": [
+        200,
+        201,
+        204
+      ],
+      "idempotent_on": [
+        409
+      ],
+      "metadata": {
+        "group_id": "conjur%2Fauthn-jwt%2Fgithub-keerth124%2Fapps",
+        "workload_id": "data/github-apps/keerth124/keerth124/onboarding-toolkit"
+      }
+    }
+  ]
+}

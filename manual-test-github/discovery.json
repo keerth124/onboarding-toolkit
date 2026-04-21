@@ -1,0 +1,32 @@
+{
+  "platform": "github",
+  "org": "keerth124",
+  "org_info": {
+    "id": 38571253,
+    "login": "keerth124",
+    "account_type": "User",
+    "node_id": "MDQ6VXNlcjM4NTcxMjUz",
+    "public_repos": 10
+  },
+  "oidc_issuer": "https://token.actions.githubusercontent.com",
+  "jwks_uri": "https://token.actions.githubusercontent.com/.well-known/jwks",
+  "repos": [
+    {
+      "name": "onboarding-toolkit",
+      "full_name": "keerth124/onboarding-toolkit",
+      "default_branch": "main",
+      "visibility": "private",
+      "environments": null,
+      "archived": false
+    }
+  ],
+  "sub_claim_customized": false,
+  "oidc_sub_customization": {
+    "detected": false,
+    "warning": "GitHub owner \"keerth124\" is a user account; org-level OIDC subject customization was not checked"
+  },
+  "warnings": [
+    "GitHub owner \"keerth124\" is a user account; org-level OIDC subject customization was not checked"
+  ],
+  "discovered_at": "2026-04-21T18:11:55Z"
+}

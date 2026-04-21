@@ -68,7 +68,7 @@ func Generate(cfg GenerateConfig) (*GenerateResult, error) {
 		return nil, err
 	}
 
-	hosts, err := writeWorkloadPolicyArtifact(cfg.Discovery, cfg)
+	hosts, err := writeWorkloadPolicyArtifact(cfg.Discovery, cfg, authnName, analysis.SelectedClaims)
 	if err != nil {
 		return nil, err
 	}

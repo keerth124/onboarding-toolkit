@@ -203,6 +203,8 @@ Review `api/plan.json` and confirm:
 - `authenticator_name` is `github-<org>`.
 - The first operation is `create-authenticator`.
 - Workload IDs are under `data/github-apps/<org>/...`.
+- Each generated host has a JWT repository annotation such as
+  `authn-jwt/github-<org>/repository: <owner>/<repo>`.
 
 ## 7. Local Dry-Run Validation
 
