@@ -16,13 +16,15 @@ func newDiscoverCmd(sf *sharedFlags) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "discover",
 		Short: "Enumerate GitHub repos and detect OIDC configuration",
-		Long: `Discover fetches all non-archived repos from the target GitHub org,
-lists environments per repo, and detects org-level sub-claim customization.
+		Long: `Discover fetches non-archived repositories from the target GitHub owner,
+lists environments per repo, and detects org-level sub-claim customization for
+organization owners.
 
 Output is written to discovery.json in the working directory.
 
 Examples:
   conjur-onboard github discover --org acme-corp
+  conjur-onboard github discover --org keerth124 --repos-from-file repos.txt
   conjur-onboard github discover --org acme-corp --repos-from-file repos.txt
   conjur-onboard github discover --org acme-corp --token ghp_xxx`,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -61,13 +63,13 @@ Examples:
 				return fmt.Errorf("writing discovery.json: %w", err)
 			}
 
-			fmt.Printf("Discovery complete: %d repos found in org %q\n", len(result.Repos), org)
+			fmt.Printf("Discovery complete: %d repos found for GitHub owner %q\n", len(result.Repos), org)
 			fmt.Printf("Artifacts written to: %s/discovery.json\n", wd)
 			return nil
 		},
 	}
 
-	cmd.Flags().StringVar(&org, "org", "", "GitHub organization name (required)")
+	cmd.Flags().StringVar(&org, "org", "", "GitHub organization or user owner name (required)")
 	cmd.Flags().StringVar(&token, "token", "", "GitHub personal access token (or set GITHUB_TOKEN)")
 	cmd.Flags().StringVar(&reposFromFile, "repos-from-file", "", "Optional file with one repo name or owner/name per line")
 

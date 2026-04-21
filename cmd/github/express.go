@@ -38,11 +38,12 @@ Pass --apply to apply automatically without prompting.
 
 Using recommended primary identity claim: 'repository'. Environment claims are
 reported for review but not enforced by the MVP generator. To customize, re-run with:
-  conjur-onboard github discover --org <org>
+  conjur-onboard github discover --org <owner>
   conjur-onboard github generate --tenant <tenant> [custom flags]
 
 Examples:
   conjur-onboard github express --org acme-corp --tenant myco
+  conjur-onboard github express --org keerth124 --tenant myco --repos-from-file repos.txt
   conjur-onboard github express --org acme-corp --tenant myco --provisioning-mode workloads-only
   conjur-onboard github express --org acme-corp --tenant myco --repos-from-file repos.txt
   CONJUR_API_KEY=xxx conjur-onboard github express --org acme-corp --tenant myco --username admin --apply`,
@@ -69,7 +70,7 @@ Examples:
 				return fmt.Errorf("work dir: %w", err)
 			}
 
-			fmt.Println("==> Step 1/3: Discovering GitHub org configuration...")
+			fmt.Println("==> Step 1/3: Discovering GitHub owner configuration...")
 			discCfg := ghdisc.DiscoverConfig{
 				Org:       org,
 				Token:     tok,
@@ -83,7 +84,7 @@ Examples:
 			if err := core.WriteJSON(wd, "discovery.json", disc); err != nil {
 				return fmt.Errorf("writing discovery.json: %w", err)
 			}
-			fmt.Printf("    Found %d repos in org %q\n", len(disc.Repos), org)
+			fmt.Printf("    Found %d repos for GitHub owner %q\n", len(disc.Repos), org)
 
 			fmt.Println("==> Step 2/3: Generating Conjur API artifacts...")
 			fmt.Println("    Using recommended primary identity claim: 'repository'")
@@ -165,7 +166,7 @@ Examples:
 		},
 	}
 
-	cmd.Flags().StringVar(&org, "org", "", "GitHub organization name (required)")
+	cmd.Flags().StringVar(&org, "org", "", "GitHub organization or user owner name (required)")
 	cmd.Flags().StringVar(&token, "token", "", "GitHub personal access token (or set GITHUB_TOKEN)")
 	cmd.Flags().StringVar(&tenant, "tenant", "", "Conjur Cloud tenant subdomain (required)")
 	cmd.Flags().StringVar(&username, "username", "", "Conjur username (required with --apply)")

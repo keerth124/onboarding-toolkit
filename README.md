@@ -8,7 +8,8 @@ JWT authenticator.
 
 ## What It Does Today
 
-- Discovers GitHub organization repositories and environments.
+- Discovers repositories and environments for a GitHub organization or user
+  owner.
 - Generates a GitHub Actions JWT authenticator body.
 - Generates Conjur workload policy YAML for discovered repositories.
 - Generates group membership API bodies for the authenticator `apps` group.
@@ -23,7 +24,7 @@ JWT authenticator.
 ## Prerequisites
 
 - Go 1.22 or newer.
-- GitHub access to the target organization.
+- GitHub access to the target organization or user-owned repository.
 - One GitHub auth option:
   - GitHub CLI, `gh`, authenticated with `repo` and `read:org` scopes.
   - `GITHUB_TOKEN`.

@@ -17,8 +17,9 @@ The safest first pass is:
 
 Collect these before starting:
 
-- GitHub organization: `GITHUB_ORG`
-- One test repository in that org: `GITHUB_REPO`, for example `api-service`
+- GitHub organization or user owner: `GITHUB_ORG`
+- One test repository owned by that account: `GITHUB_REPO`, for example
+  `api-service`
 - Secrets Manager SaaS tenant subdomain: `CONJUR_TENANT`
 - Conjur username: `CONJUR_USERNAME`
 - Conjur API key: `CONJUR_API_KEY`
@@ -76,13 +77,15 @@ Windows PowerShell:
 $env:GITHUB_TOKEN = "<github-token>"
 ```
 
-The token must be able to read the target org and repositories. For private
-repositories, use a token with repository read access.
+The token must be able to read the target owner and repositories. For private
+repositories, use a token with repository read access. For user-owned public
+repositories such as `keerth124/onboarding-toolkit`, set `GITHUB_ORG` to the
+username, for example `keerth124`.
 
 ## 3. Create A Small Repo List
 
-For early tests, use `--repos-from-file` to avoid onboarding every repository in
-the org.
+For early tests, use `--repos-from-file` to avoid onboarding every repository
+visible for the owner.
 
 macOS or Linux:
 

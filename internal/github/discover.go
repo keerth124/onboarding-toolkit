@@ -32,7 +32,9 @@ type OrgInfo struct {
 	ID           int64    `json:"id"`
 	Login        string   `json:"login"`
 	Name         string   `json:"name,omitempty"`
+	AccountType  string   `json:"account_type,omitempty"`
 	NodeID       string   `json:"node_id,omitempty"`
+	PublicRepos  int      `json:"public_repos,omitempty"`
 	PlanName     string   `json:"plan_name,omitempty"`
 	PlanSpace    int      `json:"plan_space,omitempty"`
 	PrivateRepos int      `json:"private_repos,omitempty"`
@@ -80,12 +82,18 @@ func Discover(ctx context.Context, cfg DiscoverConfig) (*DiscoveryResult, error)
 		return nil, fmt.Errorf("getting org metadata: %w", err)
 	}
 
-	oidcCustomization, err := getOIDCSubCustomization(ctx, client, cfg)
-	if err != nil {
-		return nil, fmt.Errorf("getting OIDC subject customization: %w", err)
+	oidcCustomization := OIDCSubCustomization{}
+	if orgInfo.AccountType == "Organization" {
+		var err error
+		oidcCustomization, err = getOIDCSubCustomization(ctx, client, cfg)
+		if err != nil {
+			return nil, fmt.Errorf("getting OIDC subject customization: %w", err)
+		}
+	} else {
+		oidcCustomization.Warning = fmt.Sprintf("GitHub owner %q is a %s account; org-level OIDC subject customization was not checked", cfg.Org, strings.ToLower(orgInfo.AccountType))
 	}
 
-	repos, err := discoverRepos(ctx, client, cfg)
+	repos, err := discoverRepos(ctx, client, cfg, orgInfo)
 	if err != nil {
 		return nil, fmt.Errorf("listing repos: %w", err)
 	}
@@ -141,11 +149,11 @@ func LoadDiscovery(wd string) (*DiscoveryResult, error) {
 	return &result, nil
 }
 
-func discoverRepos(ctx context.Context, client *http.Client, cfg DiscoverConfig) ([]RepoInfo, error) {
+func discoverRepos(ctx context.Context, client *http.Client, cfg DiscoverConfig, orgInfo OrgInfo) ([]RepoInfo, error) {
 	if len(cfg.RepoNames) > 0 {
 		return getSelectedRepos(ctx, client, cfg)
 	}
-	return listRepos(ctx, client, cfg)
+	return listRepos(ctx, client, cfg, orgInfo)
 }
 
 func getOrgInfo(ctx context.Context, client *http.Client, cfg DiscoverConfig) (OrgInfo, error) {
@@ -165,6 +173,7 @@ func getOrgInfo(ctx context.Context, client *http.Client, cfg DiscoverConfig) (O
 			Slug string `json:"slug"`
 			Name string `json:"name"`
 		} `json:"enterprise"`
+		Type string `json:"type"`
 	}
 
 	resp, err := getJSON(ctx, client, cfg, url, &body)
@@ -175,7 +184,7 @@ func getOrgInfo(ctx context.Context, client *http.Client, cfg DiscoverConfig) (O
 		return OrgInfo{}, authError(resp, "read:org")
 	}
 	if resp.StatusCode == http.StatusNotFound {
-		return OrgInfo{}, fmt.Errorf("organization %q was not found or is not visible to the token", cfg.Org)
+		return getUserInfo(ctx, client, cfg)
 	}
 	if resp.StatusCode != http.StatusOK {
 		return OrgInfo{}, fmt.Errorf("GitHub API returned %d for org metadata", resp.StatusCode)
@@ -190,11 +199,53 @@ func getOrgInfo(ctx context.Context, client *http.Client, cfg DiscoverConfig) (O
 		ID:           body.ID,
 		Login:        body.Login,
 		Name:         body.Name,
+		AccountType:  "Organization",
 		NodeID:       body.NodeID,
 		PlanName:     body.Plan.Name,
 		PlanSpace:    body.Plan.Space,
 		PrivateRepos: body.PrivateRepos,
 		Enterprise:   enterprise,
+	}, nil
+}
+
+func getUserInfo(ctx context.Context, client *http.Client, cfg DiscoverConfig) (OrgInfo, error) {
+	url := fmt.Sprintf("%s/users/%s", githubAPIBase, cfg.Org)
+
+	var body struct {
+		ID          int64  `json:"id"`
+		Login       string `json:"login"`
+		Name        string `json:"name"`
+		NodeID      string `json:"node_id"`
+		PublicRepos int    `json:"public_repos"`
+		Type        string `json:"type"`
+	}
+
+	resp, err := getJSON(ctx, client, cfg, url, &body)
+	if err != nil {
+		return OrgInfo{}, err
+	}
+	if resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden {
+		return OrgInfo{}, authError(resp, "repo")
+	}
+	if resp.StatusCode == http.StatusNotFound {
+		return OrgInfo{}, fmt.Errorf("GitHub owner %q was not found or is not visible to the token", cfg.Org)
+	}
+	if resp.StatusCode != http.StatusOK {
+		return OrgInfo{}, fmt.Errorf("GitHub API returned %d for owner metadata", resp.StatusCode)
+	}
+
+	accountType := body.Type
+	if accountType == "" {
+		accountType = "User"
+	}
+
+	return OrgInfo{
+		ID:          body.ID,
+		Login:       body.Login,
+		Name:        body.Name,
+		AccountType: accountType,
+		NodeID:      body.NodeID,
+		PublicRepos: body.PublicRepos,
 	}, nil
 }
 
@@ -256,11 +307,14 @@ func getSelectedRepos(ctx context.Context, client *http.Client, cfg DiscoverConf
 }
 
 // listRepos fetches all repos visible to the token for the org.
-func listRepos(ctx context.Context, client *http.Client, cfg DiscoverConfig) ([]RepoInfo, error) {
+func listRepos(ctx context.Context, client *http.Client, cfg DiscoverConfig, orgInfo OrgInfo) ([]RepoInfo, error) {
 	var all []RepoInfo
 	page := 1
 	for {
 		url := fmt.Sprintf("%s/orgs/%s/repos?type=all&per_page=%d&page=%d", githubAPIBase, cfg.Org, pageSize, page)
+		if orgInfo.AccountType != "Organization" {
+			url = fmt.Sprintf("%s/users/%s/repos?type=owner&per_page=%d&page=%d", githubAPIBase, cfg.Org, pageSize, page)
+		}
 
 		var pageRepos []repoResponse
 		resp, err := getJSON(ctx, client, cfg, url, &pageRepos)
@@ -271,7 +325,7 @@ func listRepos(ctx context.Context, client *http.Client, cfg DiscoverConfig) ([]
 			return nil, authError(resp, "repo")
 		}
 		if resp.StatusCode == http.StatusNotFound {
-			return nil, fmt.Errorf("organization %q was not found or repositories are not visible to the token", cfg.Org)
+			return nil, fmt.Errorf("GitHub owner %q was not found or repositories are not visible to the token", cfg.Org)
 		}
 		if resp.StatusCode != http.StatusOK {
 			return nil, fmt.Errorf("GitHub API returned %d for org repos", resp.StatusCode)

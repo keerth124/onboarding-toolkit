@@ -29,11 +29,11 @@ func NewGithubCmd(workDir *string, nonInteractive *bool, dryRun *bool, verbose *
 built-in OIDC identity tokens.
 
 Recommended flow:
-  conjur-onboard github express --org <org> --tenant <subdomain>
+  conjur-onboard github express --org <owner> --tenant <subdomain>
 
 Step-by-step:
-  conjur-onboard github discover --org <org>
-  conjur-onboard github inspect  --repo <org>/<repo>
+  conjur-onboard github discover --org <owner>
+  conjur-onboard github inspect  --repo <owner>/<repo>
   conjur-onboard github generate --tenant <subdomain>
   conjur-onboard github validate --tenant <subdomain>
   conjur-onboard github apply    --tenant <subdomain>
