@@ -26,7 +26,8 @@ Collect these before starting:
 - Optional existing authenticator name for workloads-only testing
 
 The tenant value is the subdomain only. Use `my-tenant`, not
-`https://my-tenant.secretsmgr.cyberark.cloud`.
+`https://my-tenant.secretsmgr.cyberark.cloud/api`. The tool adds the SaaS
+`/api` base path internally.
 
 ## 1. Build And Smoke Test
 
@@ -406,6 +407,38 @@ If the existing authenticator is not named `github-<org>`, regenerate with:
 ```sh
 --authenticator-name <existing-authenticator-name>
 ```
+
+## 11a. Test Self-Hosted / Enterprise Mode
+
+Use `--conjur-url` instead of `--tenant` and set `--conjur-target self-hosted`
+when generating artifacts. Use the self-hosted appliance URL as-is; the tool
+does not append `/api` for self-hosted targets.
+
+```powershell
+.\bin\conjur-onboard.exe github generate `
+  --conjur-url https://conjur.example.com `
+  --conjur-target self-hosted `
+  --work-dir $env:WORK_DIR
+```
+
+Expected result:
+
+- `api/04-grant-authenticator-access.yml` exists.
+- `api/plan.json` includes `load-authenticator-grants`.
+- `api/plan.json` does not include `add-group-member-*` operations.
+
+Apply with:
+
+```powershell
+.\bin\conjur-onboard.exe github apply `
+  --conjur-url https://conjur.example.com `
+  --account conjur `
+  --username $env:CONJUR_USERNAME `
+  --work-dir $env:WORK_DIR
+```
+
+If your Conjur account is not `conjur`, pass the correct account with
+`--account`.
 
 ## 12. Rollback
 

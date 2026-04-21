@@ -4,24 +4,23 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/cyberark/conjur-onboard/internal/conjur"
 	"github.com/cyberark/conjur-onboard/internal/core"
 	"github.com/spf13/cobra"
 )
 
 func newApplyCmd(sf *sharedFlags) *cobra.Command {
-	var tenant string
-	var username string
+	var conn conjurConnectionFlags
 	var skipValidate bool
 
 	cmd := &cobra.Command{
 		Use:   "apply",
-		Short: "Execute the generated API plan against a Conjur Cloud tenant",
+		Short: "Execute the generated API plan against a Conjur tenant",
 		Long: `Apply reads plan.json from the working directory and executes the API calls
-against the target Conjur Cloud tenant in order:
+against the target Conjur tenant in order:
   1. Create authenticator
   2. Load workload policy
-  3. Add workloads to the authenticator's apps group
+  3. Add workloads to the authenticator's apps group, either by REST endpoint
+     for SaaS or policy grant load for self-hosted targets
 
 Authentication uses the CONJUR_API_KEY environment variable (never a CLI flag).
 
@@ -29,12 +28,13 @@ On partial failure, apply stops at the first error and prints the rollback comma
 Re-running apply against an already-applied state is safe (idempotent).
 
 Examples:
-  CONJUR_API_KEY=xxx conjur-onboard github apply --tenant myco --username admin`,
+  CONJUR_API_KEY=xxx conjur-onboard github apply --tenant myco --username admin
+  CONJUR_API_KEY=xxx conjur-onboard github apply --conjur-url https://conjur.example.com --username admin --account myaccount`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if tenant == "" {
-				return fmt.Errorf("--tenant is required")
+			if err := conn.validateEndpointRequired(); err != nil {
+				return err
 			}
-			if username == "" && !*sf.dryRun {
+			if conn.username == "" && !*sf.dryRun {
 				return fmt.Errorf("--username is required")
 			}
 
@@ -55,7 +55,7 @@ Examples:
 
 			var client core.APIClient
 			if !*sf.dryRun {
-				client, err = conjur.NewClient(tenant, username, apiKey, *sf.verbose)
+				client, err = newConjurClient(conn, apiKey, *sf.verbose)
 				if err != nil {
 					return fmt.Errorf("conjur client: %w", err)
 				}
@@ -84,8 +84,10 @@ Examples:
 		},
 	}
 
-	cmd.Flags().StringVar(&tenant, "tenant", "", "Conjur Cloud tenant subdomain (required)")
-	cmd.Flags().StringVar(&username, "username", "", "Conjur username for authentication (required)")
+	cmd.Flags().StringVar(&conn.tenant, "tenant", "", "Conjur Cloud tenant subdomain")
+	cmd.Flags().StringVar(&conn.conjurURL, "conjur-url", "", "Full Conjur API/appliance URL for Enterprise or self-hosted")
+	cmd.Flags().StringVar(&conn.account, "account", "conjur", "Conjur account name")
+	cmd.Flags().StringVar(&conn.username, "username", "", "Conjur username for authentication (required)")
 	cmd.Flags().BoolVar(&skipValidate, "skip-validate", false, "Skip pre-flight validation (not recommended)")
 
 	return cmd

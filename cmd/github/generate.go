@@ -11,6 +11,8 @@ import (
 
 func newGenerateCmd(sf *sharedFlags) *cobra.Command {
 	var tenant string
+	var conjurURL string
+	var conjurTarget string
 	var audience string
 	var provisioningMode string
 	var authenticatorName string
@@ -24,17 +26,25 @@ func newGenerateCmd(sf *sharedFlags) *cobra.Command {
   api/01-create-authenticator.json   Body for POST /api/authenticators (bootstrap mode only)
   api/02-workloads.yml               Policy YAML for workload creation
   api/03-add-group-members.jsonl     Bodies for group membership additions
+  api/04-grant-authenticator-access.yml Self-hosted policy grant fallback
   api/plan.json                      Ordered manifest of all API calls
   integration/example-deploy.yml     GitHub Actions snippet
   NEXT_STEPS.md                      Human-readable walkthrough
 
 Examples:
   conjur-onboard github generate --tenant myco
+  conjur-onboard github generate --conjur-url https://conjur.example.com --conjur-target self-hosted
   conjur-onboard github generate --tenant myco --provisioning-mode workloads-only
   conjur-onboard github generate --tenant myco --audience my-audience`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if tenant == "" {
-				return fmt.Errorf("--tenant is required")
+			if tenant == "" && conjurURL == "" {
+				return fmt.Errorf("--tenant or --conjur-url is required")
+			}
+			if tenant != "" && conjurURL != "" {
+				return fmt.Errorf("use only one of --tenant or --conjur-url")
+			}
+			if conjurTarget == "" && conjurURL != "" {
+				conjurTarget = "self-hosted"
 			}
 
 			wd, err := core.EnsureWorkDir(*sf.workDir)
@@ -50,6 +60,8 @@ Examples:
 			gcfg := conjur.GenerateConfig{
 				Discovery:         disc,
 				Tenant:            tenant,
+				ConjurURL:         conjurURL,
+				ConjurTarget:      conjurTarget,
 				Audience:          audience,
 				CreateEnabled:     !createDisabled,
 				WorkDir:           wd,
@@ -67,15 +79,22 @@ Examples:
 			fmt.Printf("Generation complete\n")
 			fmt.Printf("  Authenticator : %s\n", plan.AuthenticatorName)
 			fmt.Printf("  Mode          : %s\n", provisioningMode)
+			fmt.Printf("  Target        : %s\n", conjurTarget)
 			fmt.Printf("  Workloads     : %d\n", plan.WorkloadCount)
 			fmt.Printf("  Artifacts in  : %s/api/\n", wd)
 			fmt.Printf("\nReview the generated policy, then run:\n")
-			fmt.Printf("  conjur-onboard github apply --tenant %s\n", tenant)
+			if conjurURL != "" {
+				fmt.Printf("  conjur-onboard github apply --conjur-url %s\n", conjurURL)
+			} else {
+				fmt.Printf("  conjur-onboard github apply --tenant %s\n", tenant)
+			}
 			return nil
 		},
 	}
 
-	cmd.Flags().StringVar(&tenant, "tenant", "", "Conjur Cloud tenant subdomain (required)")
+	cmd.Flags().StringVar(&tenant, "tenant", "", "Conjur Cloud tenant subdomain")
+	cmd.Flags().StringVar(&conjurURL, "conjur-url", "", "Full Conjur API/appliance URL for Enterprise or self-hosted")
+	cmd.Flags().StringVar(&conjurTarget, "conjur-target", "", "Conjur target: saas or self-hosted")
 	cmd.Flags().StringVar(&audience, "audience", "conjur-cloud", "JWT audience value")
 	cmd.Flags().StringVar(&provisioningMode, "provisioning-mode", "bootstrap", "Provisioning mode: bootstrap or workloads-only")
 	cmd.Flags().StringVar(&authenticatorName, "authenticator-name", "", "Existing authenticator name override for workloads-only mode")

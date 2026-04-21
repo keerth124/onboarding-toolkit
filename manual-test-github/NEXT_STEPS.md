@@ -14,7 +14,7 @@ Provisioning mode: `bootstrap`
 
 This plan creates the GitHub authenticator, workloads, and group memberships.
 
-Workload count: `8`
+Workload count: `27`
 
 Identity claim: `repository`
 
@@ -50,7 +50,7 @@ Command:
 CONJUR_API_KEY=<api-key> conjur-onboard github apply --tenant my-tenant --username <username> --work-dir manual-test-github
 ```
 
-Expected outcome: the authenticator is created, workload policy is loaded, and `8` workload memberships are added to `conjur%2Fauthn-jwt%2Fgithub-keerth124%2Fapps`.
+Expected outcome: the authenticator is created, workload policy is loaded, and `27` workload memberships are added to `conjur%2Fauthn-jwt%2Fgithub-keerth124%2Fapps`.
 
 ## 4. Grant Safe Access
 

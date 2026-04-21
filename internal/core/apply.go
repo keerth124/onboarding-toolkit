@@ -87,6 +87,8 @@ func Apply(ctx context.Context, cfg ApplyConfig) (*ApplyResult, error) {
 			log = append(log, entry)
 			if strings.HasPrefix(op.ID, "add-group-member-") {
 				result.MembershipsAdded++
+			} else if op.ID == "load-authenticator-grants" {
+				result.MembershipsAdded += metadataInt(op.Metadata, "membership_count")
 			}
 			continue
 		}
@@ -108,6 +110,8 @@ func Apply(ctx context.Context, cfg ApplyConfig) (*ApplyResult, error) {
 
 		if strings.HasPrefix(op.ID, "add-group-member-") && !entry.NoChange {
 			result.MembershipsAdded++
+		} else if op.ID == "load-authenticator-grants" && !entry.NoChange {
+			result.MembershipsAdded += metadataInt(op.Metadata, "membership_count")
 		}
 	}
 
@@ -115,6 +119,21 @@ func Apply(ctx context.Context, cfg ApplyConfig) (*ApplyResult, error) {
 		return nil, err
 	}
 	return result, nil
+}
+
+func metadataInt(metadata map[string]string, key string) int {
+	if metadata == nil {
+		return 0
+	}
+	value, ok := metadata[key]
+	if !ok {
+		return 0
+	}
+	var n int
+	if _, err := fmt.Sscanf(value, "%d", &n); err != nil {
+		return 0
+	}
+	return n
 }
 
 func executeOperation(ctx context.Context, client APIClient, op Operation, body []byte) (int, []byte, error) {

@@ -106,6 +106,63 @@ func TestGenerateWorkloadsOnlyOmitsAuthenticatorOperation(t *testing.T) {
 	}
 }
 
+func TestGenerateSelfHostedUsesPolicyGrantInsteadOfGroupMembershipAPI(t *testing.T) {
+	workDir := t.TempDir()
+	disc := testDiscovery()
+
+	_, err := Generate(GenerateConfig{
+		Discovery:     disc,
+		ConjurURL:     "https://conjur.example.com",
+		ConjurTarget:  "self-hosted",
+		Audience:      "conjur-cloud",
+		CreateEnabled: true,
+		WorkDir:       workDir,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(workDir, "api", "03-add-group-members.jsonl")); !os.IsNotExist(err) {
+		t.Fatalf("self-hosted group members artifact exists or stat failed unexpectedly: %v", err)
+	}
+
+	grantPolicy, err := os.ReadFile(filepath.Join(workDir, "api", "04-grant-authenticator-access.yml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	grant := string(grantPolicy)
+	if !strings.Contains(grant, "role: !group conjur/authn-jwt/github-acme/apps") {
+		t.Fatalf("grant policy missing apps group role:\n%s", grant)
+	}
+	if !strings.Contains(grant, "- !host data/github-apps/acme/acme/api") {
+		t.Fatalf("grant policy missing workload host:\n%s", grant)
+	}
+
+	var plan struct {
+		ConjurURL    string `json:"conjur_url"`
+		ConjurTarget string `json:"conjur_target"`
+		Operations   []struct {
+			ID   string `json:"id"`
+			Path string `json:"path"`
+		} `json:"operations"`
+	}
+	readJSONForTest(t, filepath.Join(workDir, "api", "plan.json"), &plan)
+	if plan.ConjurTarget != "self-hosted" {
+		t.Fatalf("ConjurTarget = %q, want self-hosted", plan.ConjurTarget)
+	}
+	if plan.ConjurURL != "https://conjur.example.com" {
+		t.Fatalf("ConjurURL = %q, want https://conjur.example.com", plan.ConjurURL)
+	}
+	for _, op := range plan.Operations {
+		if strings.HasPrefix(op.ID, "add-group-member-") {
+			t.Fatal("self-hosted plan included group membership REST operation")
+		}
+	}
+	last := plan.Operations[len(plan.Operations)-1]
+	if last.ID != "load-authenticator-grants" || last.Path != "/policies/conjur/policy/root" {
+		t.Fatalf("last operation = %#v, want load-authenticator-grants policy load", last)
+	}
+}
+
 func TestGenerateAuthenticatorNameOverride(t *testing.T) {
 	workDir := t.TempDir()
 	disc := testDiscovery()

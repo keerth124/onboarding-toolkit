@@ -4,31 +4,30 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/cyberark/conjur-onboard/internal/conjur"
 	"github.com/cyberark/conjur-onboard/internal/core"
 	"github.com/spf13/cobra"
 )
 
 func newValidateCmd(sf *sharedFlags) *cobra.Command {
-	var tenant string
-	var username string
+	var conn conjurConnectionFlags
 
 	cmd := &cobra.Command{
 		Use:   "validate",
 		Short: "Run non-mutating checks against a generated GitHub API plan",
 		Long: `Validate reads api/plan.json from the working directory, verifies that all
-referenced request bodies are readable, and checks that the target Conjur Cloud
-tenant is reachable with the provided tool-auth credentials.
+referenced request bodies are readable, and checks that the target Conjur tenant
+is reachable with the provided tool-auth credentials.
 
 Authentication uses the CONJUR_API_KEY environment variable.
 
 Examples:
-  CONJUR_API_KEY=xxx conjur-onboard github validate --tenant myco --username admin`,
+  CONJUR_API_KEY=xxx conjur-onboard github validate --tenant myco --username admin
+  CONJUR_API_KEY=xxx conjur-onboard github validate --conjur-url https://conjur.example.com --username admin --account myaccount`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if tenant == "" {
-				return fmt.Errorf("--tenant is required")
+			if err := conn.validateEndpointRequired(); err != nil {
+				return err
 			}
-			if username == "" && !*sf.dryRun {
+			if conn.username == "" && !*sf.dryRun {
 				return fmt.Errorf("--username is required")
 			}
 
@@ -49,7 +48,7 @@ Examples:
 
 			var client core.APIClient
 			if !*sf.dryRun {
-				client, err = conjur.NewClient(tenant, username, apiKey, *sf.verbose)
+				client, err = newConjurClient(conn, apiKey, *sf.verbose)
 				if err != nil {
 					return fmt.Errorf("conjur client: %w", err)
 				}
@@ -76,8 +75,10 @@ Examples:
 		},
 	}
 
-	cmd.Flags().StringVar(&tenant, "tenant", "", "Conjur Cloud tenant subdomain (required)")
-	cmd.Flags().StringVar(&username, "username", "", "Conjur username for authentication (required)")
+	cmd.Flags().StringVar(&conn.tenant, "tenant", "", "Conjur Cloud tenant subdomain")
+	cmd.Flags().StringVar(&conn.conjurURL, "conjur-url", "", "Full Conjur API/appliance URL for Enterprise or self-hosted")
+	cmd.Flags().StringVar(&conn.account, "account", "conjur", "Conjur account name")
+	cmd.Flags().StringVar(&conn.username, "username", "", "Conjur username for authentication (required)")
 
 	return cmd
 }

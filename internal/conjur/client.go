@@ -20,37 +20,66 @@ const (
 
 // Client is an authenticated HTTP client for Conjur Cloud.
 type Client struct {
-	baseURL string
-	token   string // base64-encoded Conjur auth token
-	verbose bool
-	http    *http.Client
+	baseURL        string
+	apiBaseURL     string
+	stripAPIPrefix bool
+	token          string // base64-encoded Conjur auth token
+	verbose        bool
+	http           *http.Client
+}
+
+type ClientConfig struct {
+	Tenant    string
+	ConjurURL string
+	Account   string
+	Username  string
+	APIKey    string
+	Verbose   bool
 }
 
 // NewClient authenticates to the Conjur Cloud tenant and returns a ready client.
 // The API key is read from the apiKey parameter (sourced from CONJUR_API_KEY env var by callers).
 func NewClient(tenant, username, apiKey string, verbose bool) (*Client, error) {
-	baseURL := fmt.Sprintf("https://%s.secretsmgr.cyberark.cloud", tenant)
+	return NewClientFromConfig(ClientConfig{
+		Tenant:   tenant,
+		Account:  "conjur",
+		Username: username,
+		APIKey:   apiKey,
+		Verbose:  verbose,
+	})
+}
+
+func NewClientFromConfig(cfg ClientConfig) (*Client, error) {
+	if cfg.Account == "" {
+		cfg.Account = "conjur"
+	}
+	baseURL, apiBaseURL, stripAPIPrefix, err := clientBaseURLs(cfg)
+	if err != nil {
+		return nil, err
+	}
 
 	httpClient := &http.Client{Timeout: 60 * time.Second}
 
-	// Authenticate: POST /authn/conjur/{username}/authenticate
-	token, err := authenticate(httpClient, baseURL, username, apiKey, verbose)
+	// Authenticate: POST <api-base>/authn/{account}/{username}/authenticate
+	token, err := authenticate(httpClient, apiBaseURL, cfg.Account, cfg.Username, cfg.APIKey, cfg.Verbose)
 	if err != nil {
-		return nil, fmt.Errorf("authenticating to %s: %w", baseURL, err)
+		return nil, fmt.Errorf("authenticating to %s: %w", apiBaseURL, err)
 	}
 
 	return &Client{
-		baseURL: baseURL,
-		token:   token,
-		verbose: verbose,
-		http:    httpClient,
+		baseURL:        baseURL,
+		apiBaseURL:     apiBaseURL,
+		stripAPIPrefix: stripAPIPrefix,
+		token:          token,
+		verbose:        cfg.Verbose,
+		http:           httpClient,
 	}, nil
 }
 
 // authenticate performs the Conjur authn-local flow and returns the base64-encoded token.
-func authenticate(client *http.Client, baseURL, username, apiKey string, verbose bool) (string, error) {
-	authURL := fmt.Sprintf("%s/authn/conjur/%s/authenticate",
-		baseURL, url.PathEscape(username))
+func authenticate(client *http.Client, apiBaseURL, account, username, apiKey string, verbose bool) (string, error) {
+	authURL := fmt.Sprintf("%s/authn/%s/%s/authenticate",
+		apiBaseURL, url.PathEscape(account), url.PathEscape(username))
 
 	body := strings.NewReader(apiKey)
 	req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, authURL, body)
@@ -102,7 +131,7 @@ func (c *Client) Get(ctx context.Context, path string) (int, []byte, error) {
 }
 
 func (c *Client) doWithRetry(ctx context.Context, method, path, contentType string, body []byte) (int, []byte, error) {
-	fullURL := c.baseURL + path
+	fullURL := c.apiURL(path)
 
 	var lastErr error
 	backoff := 1 * time.Second
@@ -164,4 +193,64 @@ func (c *Client) doWithRetry(ctx context.Context, method, path, contentType stri
 	}
 
 	return 0, nil, lastErr
+}
+
+func (c *Client) apiURL(path string) string {
+	return c.apiBaseURL + normalizeAPIPath(path, c.stripAPIPrefix)
+}
+
+func tenantBaseURL(tenant string) string {
+	return fmt.Sprintf("https://%s.secretsmgr.cyberark.cloud", strings.TrimSuffix(tenant, "/"))
+}
+
+func tenantAPIBaseURL(tenant string) string {
+	return tenantBaseURL(tenant) + "/api"
+}
+
+func clientBaseURLs(cfg ClientConfig) (string, string, bool, error) {
+	if strings.TrimSpace(cfg.ConjurURL) != "" {
+		baseURL, apiBaseURL, err := normalizeConjurURL(cfg.ConjurURL)
+		return baseURL, apiBaseURL, false, err
+	}
+	if strings.TrimSpace(cfg.Tenant) == "" {
+		return "", "", false, fmt.Errorf("tenant or conjur URL is required")
+	}
+	baseURL := tenantBaseURL(cfg.Tenant)
+	return baseURL, baseURL + "/api", true, nil
+}
+
+func normalizeConjurURL(raw string) (string, string, error) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return "", "", fmt.Errorf("conjur URL is required")
+	}
+	parsed, err := url.Parse(raw)
+	if err != nil {
+		return "", "", fmt.Errorf("parsing conjur URL: %w", err)
+	}
+	if parsed.Scheme == "" || parsed.Host == "" {
+		return "", "", fmt.Errorf("conjur URL must include scheme and host")
+	}
+
+	parsed.Path = strings.TrimRight(parsed.Path, "/")
+	return parsed.String(), parsed.String(), nil
+}
+
+func normalizeAPIPath(path string, stripAPIPrefix bool) string {
+	if path == "" {
+		return ""
+	}
+	if !strings.HasPrefix(path, "/") {
+		path = "/" + path
+	}
+	if !stripAPIPrefix {
+		return path
+	}
+	if path == "/api" {
+		return ""
+	}
+	if strings.HasPrefix(path, "/api/") {
+		return strings.TrimPrefix(path, "/api")
+	}
+	return path
 }

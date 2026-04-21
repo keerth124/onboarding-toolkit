@@ -14,7 +14,10 @@ func newExpressCmd(sf *sharedFlags) *cobra.Command {
 	var org string
 	var token string
 	var tenant string
+	var conjurURL string
+	var conjurTarget string
 	var username string
+	var account string
 	var audience string
 	var reposFromFile string
 	var provisioningMode string
@@ -52,7 +55,15 @@ Examples:
 				return fmt.Errorf("--org is required")
 			}
 			if tenant == "" {
-				return fmt.Errorf("--tenant is required")
+				if conjurURL == "" {
+					return fmt.Errorf("--tenant or --conjur-url is required")
+				}
+			}
+			if tenant != "" && conjurURL != "" {
+				return fmt.Errorf("use only one of --tenant or --conjur-url")
+			}
+			if conjurTarget == "" && conjurURL != "" {
+				conjurTarget = "self-hosted"
 			}
 
 			tok, err := resolveGitHubToken(cmd.Context(), token)
@@ -91,6 +102,8 @@ Examples:
 			gcfg := conjur.GenerateConfig{
 				Discovery:         disc,
 				Tenant:            tenant,
+				ConjurURL:         conjurURL,
+				ConjurTarget:      conjurTarget,
 				Audience:          audience,
 				CreateEnabled:     !createDisabled,
 				WorkDir:           wd,
@@ -105,12 +118,17 @@ Examples:
 			}
 			fmt.Printf("    Authenticator : %s\n", plan.AuthenticatorName)
 			fmt.Printf("    Mode          : %s\n", provisioningMode)
+			fmt.Printf("    Target        : %s\n", conjurTarget)
 			fmt.Printf("    Workloads     : %d\n", plan.WorkloadCount)
 
 			if !autoApply {
 				fmt.Printf("\nReview the generated policy at %s/api/\n", wd)
 				fmt.Printf("Then run:\n")
-				fmt.Printf("  CONJUR_API_KEY=<key> conjur-onboard github apply --tenant %s --username <username> --work-dir %s\n", tenant, wd)
+				if conjurURL != "" {
+					fmt.Printf("  CONJUR_API_KEY=<key> conjur-onboard github apply --conjur-url %s --username <username> --work-dir %s\n", conjurURL, wd)
+				} else {
+					fmt.Printf("  CONJUR_API_KEY=<key> conjur-onboard github apply --tenant %s --username <username> --work-dir %s\n", tenant, wd)
+				}
 				fmt.Printf("\nOr re-run express with --apply to apply automatically.\n")
 				return nil
 			}
@@ -124,7 +142,12 @@ Examples:
 			}
 
 			fmt.Println("==> Step 3/3: Applying to Conjur Cloud tenant...")
-			client, err := conjur.NewClient(tenant, username, apiKey, *sf.verbose)
+			client, err := newConjurClient(conjurConnectionFlags{
+				tenant:    tenant,
+				conjurURL: conjurURL,
+				account:   account,
+				username:  username,
+			}, apiKey, *sf.verbose)
 			if err != nil {
 				return fmt.Errorf("conjur client: %w", err)
 			}
@@ -168,8 +191,11 @@ Examples:
 
 	cmd.Flags().StringVar(&org, "org", "", "GitHub organization or user owner name (required)")
 	cmd.Flags().StringVar(&token, "token", "", "GitHub personal access token (or set GITHUB_TOKEN)")
-	cmd.Flags().StringVar(&tenant, "tenant", "", "Conjur Cloud tenant subdomain (required)")
+	cmd.Flags().StringVar(&tenant, "tenant", "", "Conjur Cloud tenant subdomain")
+	cmd.Flags().StringVar(&conjurURL, "conjur-url", "", "Full Conjur API/appliance URL for Enterprise or self-hosted")
+	cmd.Flags().StringVar(&conjurTarget, "conjur-target", "", "Conjur target: saas or self-hosted")
 	cmd.Flags().StringVar(&username, "username", "", "Conjur username (required with --apply)")
+	cmd.Flags().StringVar(&account, "account", "conjur", "Conjur account name")
 	cmd.Flags().StringVar(&audience, "audience", "conjur-cloud", "JWT audience value")
 	cmd.Flags().StringVar(&reposFromFile, "repos-from-file", "", "Optional file with one repo name or owner/name per line")
 	cmd.Flags().StringVar(&provisioningMode, "provisioning-mode", "bootstrap", "Provisioning mode: bootstrap or workloads-only")

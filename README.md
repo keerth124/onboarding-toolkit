@@ -33,7 +33,7 @@ JWT authenticator.
   - `--token <token>`.
 - For tenant validation/apply/rollback:
   - Secrets Manager SaaS tenant subdomain, for example `my-tenant` from
-    `https://my-tenant.secretsmgr.cyberark.cloud`.
+    `https://my-tenant.secretsmgr.cyberark.cloud/api`.
   - Conjur username.
   - Conjur API key in `CONJUR_API_KEY`.
 
@@ -47,7 +47,7 @@ gh auth refresh -s repo,read:org
 Current tenant auth uses Conjur API key auth:
 
 ```text
-POST /authn/conjur/<username>/authenticate
+POST https://<tenant>.secretsmgr.cyberark.cloud/api/authn/conjur/<username>/authenticate
 ```
 
 CyberArk Identity session auth is still a PRD target, not implemented in this
@@ -215,6 +215,37 @@ an override:
   --tenant my-tenant \
   --provisioning-mode workloads-only \
   --authenticator-name existing-authenticator-name \
+  --work-dir "$WORK_DIR"
+```
+
+## Self-Hosted Or Enterprise Endpoint
+
+For Conjur Enterprise or Secrets Manager Self-Hosted, generate with the full
+appliance URL and the self-hosted target mode:
+
+```sh
+./bin/conjur-onboard github generate \
+  --conjur-url https://conjur.example.com \
+  --conjur-target self-hosted \
+  --work-dir "$WORK_DIR"
+```
+
+For self-hosted targets, the tool uses `--conjur-url` as provided and does not
+append `/api`. The SaaS `/api` base suffix is added only when you use
+`--tenant`.
+
+Self-hosted plans still use the manage-authenticators REST endpoint, but they do
+not use the SaaS group-membership endpoint. Instead, generation emits
+`api/04-grant-authenticator-access.yml` and adds a policy-load operation that
+grants generated workloads to `conjur/authn-jwt/<authenticator>/apps`.
+
+Apply with the same endpoint and, if needed, a non-default Conjur account:
+
+```sh
+CONJUR_API_KEY=<api-key> ./bin/conjur-onboard github apply \
+  --conjur-url https://conjur.example.com \
+  --account myaccount \
+  --username admin \
   --work-dir "$WORK_DIR"
 ```
 

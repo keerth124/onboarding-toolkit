@@ -26,6 +26,8 @@ type Plan struct {
 	Version           string      `json:"version"`
 	Platform          string      `json:"platform"`
 	Tenant            string      `json:"tenant"`
+	ConjurURL         string      `json:"conjur_url,omitempty"`
+	ConjurTarget      string      `json:"conjur_target,omitempty"`
 	AuthenticatorType string      `json:"authenticator_type"`
 	AuthenticatorName string      `json:"authenticator_name"`
 	ProvisioningMode  string      `json:"provisioning_mode,omitempty"`

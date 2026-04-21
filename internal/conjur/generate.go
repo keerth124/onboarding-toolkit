@@ -2,6 +2,7 @@ package conjur
 
 import (
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -15,6 +16,8 @@ import (
 type GenerateConfig struct {
 	Discovery         *ghdisc.DiscoveryResult
 	Tenant            string
+	ConjurURL         string
+	ConjurTarget      string
 	Audience          string
 	CreateEnabled     bool
 	WorkDir           string
@@ -38,8 +41,29 @@ func Generate(cfg GenerateConfig) (*GenerateResult, error) {
 	if cfg.WorkDir == "" {
 		return nil, fmt.Errorf("work directory is required")
 	}
+	if cfg.Tenant == "" && cfg.ConjurURL == "" {
+		return nil, fmt.Errorf("tenant or conjur URL is required")
+	}
+	if cfg.ConjurURL == "" {
+		cfg.ConjurURL = tenantAPIURL(cfg.Tenant)
+	} else {
+		_, apiURL, err := normalizeConjurURL(cfg.ConjurURL)
+		if err != nil {
+			return nil, err
+		}
+		cfg.ConjurURL = apiURL
+	}
+	if cfg.ConjurTarget == "" {
+		cfg.ConjurTarget = "saas"
+	}
+	if cfg.ConjurTarget != "saas" && cfg.ConjurTarget != "self-hosted" {
+		return nil, fmt.Errorf("unsupported Conjur target %q", cfg.ConjurTarget)
+	}
+	if cfg.ConjurTarget == "self-hosted" && cfg.ConjurURL == "" {
+		return nil, fmt.Errorf("conjur URL is required for self-hosted target")
+	}
 	if cfg.Tenant == "" {
-		return nil, fmt.Errorf("tenant is required")
+		cfg.Tenant = tenantNameFromURL(cfg.ConjurURL)
 	}
 	if cfg.Audience == "" {
 		cfg.Audience = "conjur-cloud"
@@ -73,9 +97,23 @@ func Generate(cfg GenerateConfig) (*GenerateResult, error) {
 		return nil, err
 	}
 
-	groupID, err := writeGroupMembersArtifact(authnName, hosts, cfg)
-	if err != nil {
-		return nil, err
+	groupID := appsGroupID(authnName)
+	if cfg.ConjurTarget == "self-hosted" {
+		if err := removeGroupMembersArtifact(cfg.WorkDir); err != nil {
+			return nil, err
+		}
+		if err := writeAuthenticatorGrantPolicyArtifact(authnName, groupID, hosts, cfg); err != nil {
+			return nil, err
+		}
+	} else {
+		var err error
+		groupID, err = writeGroupMembersArtifact(authnName, hosts, cfg)
+		if err != nil {
+			return nil, err
+		}
+		if err := removeAuthenticatorGrantPolicyArtifact(cfg.WorkDir); err != nil {
+			return nil, err
+		}
 	}
 
 	plan := buildPlan(cfg, authnName, groupID, hosts)
@@ -137,28 +175,47 @@ func buildPlan(cfg GenerateConfig, authnName string, groupID string, hosts []Wor
 		},
 	})
 
-	for i, h := range hosts {
+	if cfg.ConjurTarget == "self-hosted" {
 		ops = append(ops, core.Operation{
-			ID:             fmt.Sprintf("add-group-member-%03d", i+1),
-			Description:    "Add workload to authenticator apps group",
+			ID:             "load-authenticator-grants",
+			Description:    "Grant generated workloads to authenticator apps group using policy load",
 			Method:         "POST",
-			Path:           "/api/groups/" + groupID + "/members",
-			BodyFile:       "api/03-add-group-members.jsonl",
-			BodyLine:       i + 1,
-			ContentType:    "application/json",
-			ExpectedStatus: []int{200, 201, 204},
-			IdempotentOn:   []int{409},
+			Path:           "/policies/conjur/policy/root",
+			BodyFile:       "api/04-grant-authenticator-access.yml",
+			ContentType:    "application/x-yaml",
+			ExpectedStatus: []int{200, 201},
 			Metadata: map[string]string{
-				"workload_id": h.FullPath,
-				"group_id":    groupID,
+				"group_id":          groupID,
+				"membership_count":  fmt.Sprintf("%d", len(hosts)),
+				"rollback_behavior": "manual-policy-review",
 			},
 		})
+	} else {
+		for i, h := range hosts {
+			ops = append(ops, core.Operation{
+				ID:             fmt.Sprintf("add-group-member-%03d", i+1),
+				Description:    "Add workload to authenticator apps group",
+				Method:         "POST",
+				Path:           "/api/groups/" + groupID + "/members",
+				BodyFile:       "api/03-add-group-members.jsonl",
+				BodyLine:       i + 1,
+				ContentType:    "application/json",
+				ExpectedStatus: []int{200, 201, 204},
+				IdempotentOn:   []int{409},
+				Metadata: map[string]string{
+					"workload_id": h.FullPath,
+					"group_id":    groupID,
+				},
+			})
+		}
 	}
 
 	return &core.Plan{
 		Version:           "v1alpha1",
 		Platform:          "github",
 		Tenant:            cfg.Tenant,
+		ConjurURL:         cfg.ConjurURL,
+		ConjurTarget:      cfg.ConjurTarget,
 		AuthenticatorType: "jwt",
 		AuthenticatorName: authnName,
 		ProvisioningMode:  cfg.ProvisioningMode,
@@ -205,12 +262,14 @@ func writeConfig(cfg GenerateConfig, authnName string, workloadCount int) error 
 	config := fmt.Sprintf(`platform: github
 org: %s
 tenant: %s
+conjur_url: %s
+conjur_target: %s
 workload_auth: jwt
 provisioning_mode: %s
 authenticator_name: %s
 audience: %s
 workload_count: %d
-`, cfg.Discovery.Org, cfg.Tenant, cfg.ProvisioningMode, authnName, cfg.Audience, workloadCount)
+`, cfg.Discovery.Org, cfg.Tenant, cfg.ConjurURL, cfg.ConjurTarget, cfg.ProvisioningMode, authnName, cfg.Audience, workloadCount)
 
 	if err := core.WriteText(cfg.WorkDir, "config.yml", config); err != nil {
 		return fmt.Errorf("writing config.yml: %w", err)
@@ -219,6 +278,10 @@ workload_count: %d
 }
 
 func writeIntegrationArtifacts(cfg GenerateConfig, authnName string, hosts []WorkloadHost) error {
+	conjurURL := cfg.ConjurURL
+	if conjurURL == "" {
+		conjurURL = tenantAPIURL(cfg.Tenant)
+	}
 	hostID := "data/github-apps/" + sanitizeName(cfg.Discovery.Org) + "/OWNER/REPO"
 	repoName := "owner/repo"
 	if len(hosts) > 0 {
@@ -247,7 +310,7 @@ jobs:
       - name: Fetch secrets from Conjur Cloud
         uses: cyberark/conjur-action@v2
         with:
-          url: https://%s.secretsmgr.cyberark.cloud
+          url: %s
           authn_id: %s
           host_id: %s
           secrets: |
@@ -257,7 +320,7 @@ jobs:
         run: ./deploy.sh
         env:
           TEST_SECRET: ${{ env.TEST_SECRET }}
-`, cfg.Tenant, authnName, hostID)
+`, conjurURL, authnName, hostID)
 
 	readme := fmt.Sprintf(`# GitHub Actions Integration
 
@@ -265,7 +328,7 @@ This directory contains a starter workflow for a GitHub Actions workload using t
 
 Generated values:
 
-- Tenant URL: `+"`https://%s.secretsmgr.cyberark.cloud`"+`
+- Conjur API URL: `+"`%s`"+`
 - Authenticator service ID: `+"`%s`"+`
 - Example workload host ID: `+"`%s`"+`
 - Example repository: `+"`%s`"+`
@@ -277,7 +340,7 @@ The workflow must keep:
 - `+"`permissions: id-token: write`"+`
 - `+"`permissions: contents: read`"+`
 - `+"`cyberark/conjur-action@v2`"+`
-`, cfg.Tenant, authnName, hostID, repoName)
+`, conjurURL, authnName, hostID, repoName)
 
 	destDir := filepath.Join(cfg.WorkDir, "integration")
 	if err := core.WriteText(destDir, "example-deploy.yml", workflow); err != nil {
@@ -294,13 +357,24 @@ func writeNextSteps(cfg GenerateConfig, authnName string, groupID string, worklo
 	if cfg.ProvisioningMode == "workloads-only" {
 		modeNote = "This plan assumes the GitHub authenticator already exists and creates only workloads plus group memberships."
 	}
+	if cfg.ConjurTarget == "self-hosted" {
+		modeNote += " Because the self-hosted target has no group membership REST endpoint, group access is granted by loading api/04-grant-authenticator-access.yml."
+	}
+	generateEndpoint := fmt.Sprintf("--tenant %s", cfg.Tenant)
+	validateEndpoint := fmt.Sprintf("--tenant %s", cfg.Tenant)
+	if cfg.ConjurTarget == "self-hosted" {
+		generateEndpoint = fmt.Sprintf("--conjur-url %s --conjur-target self-hosted", cfg.ConjurURL)
+		validateEndpoint = fmt.Sprintf("--conjur-url %s", cfg.ConjurURL)
+	}
 	next := fmt.Sprintf(`# Next Steps: GitHub Actions Onboarding
 
 ## Generated Summary
 
 Platform: GitHub Actions
 
-Conjur Cloud tenant: `+"`%s`"+`
+Conjur target: `+"`%s`"+`
+
+Conjur API URL: `+"`%s`"+`
 
 Authenticator type: `+"`jwt`"+`
 
@@ -323,17 +397,17 @@ Apps group to grant to safes: `+"`conjur/authn-jwt/%s/apps`"+`
 Command:
 
 `+"```sh"+`
-conjur-onboard github generate --tenant %s --work-dir %s
+conjur-onboard github generate %s --work-dir %s
 `+"```"+`
 
-Expected outcome: `+"`api/plan.json`"+`, `+"`api/01-create-authenticator.json`"+`, `+"`api/02-workloads.yml`"+`, `+"`api/03-add-group-members.jsonl`"+`, and `+"`integration/example-deploy.yml`"+` are present and reviewable.
+Expected outcome: `+"`api/plan.json`"+`, `+"`api/01-create-authenticator.json`"+`, `+"`api/02-workloads.yml`"+`, grant or membership artifacts, and `+"`integration/example-deploy.yml`"+` are present and reviewable.
 
 ## 2. Validate Against the Tenant
 
 Command:
 
 `+"```sh"+`
-CONJUR_API_KEY=<api-key> conjur-onboard github validate --tenant %s --username <username> --work-dir %s
+CONJUR_API_KEY=<api-key> conjur-onboard github validate %s --username <username> --work-dir %s
 `+"```"+`
 
 Expected outcome: validation can read all generated bodies and reach the tenant API.
@@ -343,7 +417,7 @@ Expected outcome: validation can read all generated bodies and reach the tenant 
 Command:
 
 `+"```sh"+`
-CONJUR_API_KEY=<api-key> conjur-onboard github apply --tenant %s --username <username> --work-dir %s
+CONJUR_API_KEY=<api-key> conjur-onboard github apply %s --username <username> --work-dir %s
 `+"```"+`
 
 Expected outcome: the authenticator is created, workload policy is loaded, and `+"`%d`"+` workload memberships are added to `+"`%s`"+`.
@@ -377,7 +451,7 @@ Expected outcome: the workflow fetches the test secret and the deployment step r
 Synthetic claim analysis is generated from the documented GitHub OIDC schema. Live inspection and interactive claim selection are not implemented in this first GitHub slice.
 
 Environment claims are recorded for review but not enforced by the MVP generator. Enforcing `+"`environment`"+` safely requires a compatible GitHub identity strategy so Conjur can map each token to the correct workload.
-`, cfg.Tenant, authnName, cfg.ProvisioningMode, modeNote, workloadCount, authnName, cfg.Tenant, cfg.WorkDir, cfg.Tenant, cfg.WorkDir, cfg.Tenant, cfg.WorkDir, workloadCount, groupID, authnName, identityPath(cfg.Discovery.Org))
+`, cfg.ConjurTarget, cfg.ConjurURL, authnName, cfg.ProvisioningMode, modeNote, workloadCount, authnName, generateEndpoint, cfg.WorkDir, validateEndpoint, cfg.WorkDir, validateEndpoint, cfg.WorkDir, workloadCount, groupID, authnName, identityPath(cfg.Discovery.Org))
 
 	if err := core.WriteText(cfg.WorkDir, "NEXT_STEPS.md", next); err != nil {
 		return fmt.Errorf("writing NEXT_STEPS.md: %w", err)
@@ -408,6 +482,18 @@ func appsGroupID(authnName string) string {
 	raw := fmt.Sprintf("conjur/authn-jwt/%s/apps", authnName)
 	// URL-encode the slashes for use in the API path.
 	return strings.ReplaceAll(raw, "/", "%2F")
+}
+
+func tenantAPIURL(tenant string) string {
+	return tenantAPIBaseURL(tenant)
+}
+
+func tenantNameFromURL(raw string) string {
+	parsed, err := url.Parse(raw)
+	if err != nil || parsed.Host == "" {
+		return ""
+	}
+	return strings.Split(parsed.Host, ".")[0]
 }
 
 func resolvedAuthenticatorName(cfg GenerateConfig) string {

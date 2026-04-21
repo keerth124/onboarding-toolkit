@@ -5,9 +5,21 @@
   id: data/github-apps/keerth124
   body:
     - !host
+      id: keerth124/ABCStore
+      annotations:
+        authn-jwt/github-keerth124/repository: keerth124/ABCStore
+    - !host
+      id: keerth124/ai-oracle
+      annotations:
+        authn-jwt/github-keerth124/repository: keerth124/ai-oracle
+    - !host
       id: keerth124/alpaca-backtrader-api
       annotations:
         authn-jwt/github-keerth124/repository: keerth124/alpaca-backtrader-api
+    - !host
+      id: keerth124/conjur-bootstrap-ui
+      annotations:
+        authn-jwt/github-keerth124/repository: keerth124/conjur-bootstrap-ui
     - !host
       id: keerth124/conjur-github-action
       annotations:
@@ -33,6 +45,70 @@
       annotations:
         authn-jwt/github-keerth124/repository: keerth124/gpt4free
     - !host
+      id: keerth124/gridiron-gleanings
+      annotations:
+        authn-jwt/github-keerth124/repository: keerth124/gridiron-gleanings
+    - !host
+      id: keerth124/gridiron-gleanings-57
+      annotations:
+        authn-jwt/github-keerth124/repository: keerth124/gridiron-gleanings-57
+    - !host
+      id: keerth124/hashi-vault-demo
+      annotations:
+        authn-jwt/github-keerth124/repository: keerth124/hashi-vault-demo
+    - !host
+      id: keerth124/hello-world
+      annotations:
+        authn-jwt/github-keerth124/repository: keerth124/hello-world
+    - !host
+      id: keerth124/investment_oracle
+      annotations:
+        authn-jwt/github-keerth124/repository: keerth124/investment_oracle
+    - !host
       id: keerth124/JamesGPT
       annotations:
         authn-jwt/github-keerth124/repository: keerth124/JamesGPT
+    - !host
+      id: keerth124/kards
+      annotations:
+        authn-jwt/github-keerth124/repository: keerth124/kards
+    - !host
+      id: keerth124/Kards10
+      annotations:
+        authn-jwt/github-keerth124/repository: keerth124/Kards10
+    - !host
+      id: keerth124/multifamilyListings
+      annotations:
+        authn-jwt/github-keerth124/repository: keerth124/multifamilyListings
+    - !host
+      id: keerth124/onboarding-toolkit
+      annotations:
+        authn-jwt/github-keerth124/repository: keerth124/onboarding-toolkit
+    - !host
+      id: keerth124/prd_repo
+      annotations:
+        authn-jwt/github-keerth124/repository: keerth124/prd_repo
+    - !host
+      id: keerth124/summon-slide
+      annotations:
+        authn-jwt/github-keerth124/repository: keerth124/summon-slide
+    - !host
+      id: keerth124/templating-example
+      annotations:
+        authn-jwt/github-keerth124/repository: keerth124/templating-example
+    - !host
+      id: keerth124/templating-example-1
+      annotations:
+        authn-jwt/github-keerth124/repository: keerth124/templating-example-1
+    - !host
+      id: keerth124/testPythonQueens
+      annotations:
+        authn-jwt/github-keerth124/repository: keerth124/testPythonQueens
+    - !host
+      id: keerth124/test_quant
+      annotations:
+        authn-jwt/github-keerth124/repository: keerth124/test_quant
+    - !host
+      id: keerth124/TradingBots
+      annotations:
+        authn-jwt/github-keerth124/repository: keerth124/TradingBots

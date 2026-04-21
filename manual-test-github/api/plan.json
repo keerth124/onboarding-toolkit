@@ -7,7 +7,7 @@
   "provisioning_mode": "bootstrap",
   "apps_group_id": "conjur%2Fauthn-jwt%2Fgithub-keerth124%2Fapps",
   "identity_path": "data/github-apps/keerth124",
-  "workload_count": 8,
+  "workload_count": 27,
   "operations": [
     {
       "id": "create-authenticator",
@@ -39,7 +39,7 @@
         201
       ],
       "metadata": {
-        "workload_ids": "data/github-apps/keerth124/keerth124/alpaca-backtrader-api,data/github-apps/keerth124/keerth124/conjur-github-action,data/github-apps/keerth124/keerth124/deepwiki-open,data/github-apps/keerth124/keerth124/FinAnGPT,data/github-apps/keerth124/keerth124/flask-app,data/github-apps/keerth124/keerth124/go-webapp-sample,data/github-apps/keerth124/keerth124/gpt4free,data/github-apps/keerth124/keerth124/JamesGPT"
+        "workload_ids": "data/github-apps/keerth124/keerth124/ABCStore,data/github-apps/keerth124/keerth124/ai-oracle,data/github-apps/keerth124/keerth124/alpaca-backtrader-api,data/github-apps/keerth124/keerth124/conjur-bootstrap-ui,data/github-apps/keerth124/keerth124/conjur-github-action,data/github-apps/keerth124/keerth124/deepwiki-open,data/github-apps/keerth124/keerth124/FinAnGPT,data/github-apps/keerth124/keerth124/flask-app,data/github-apps/keerth124/keerth124/go-webapp-sample,data/github-apps/keerth124/keerth124/gpt4free,data/github-apps/keerth124/keerth124/gridiron-gleanings,data/github-apps/keerth124/keerth124/gridiron-gleanings-57,data/github-apps/keerth124/keerth124/hashi-vault-demo,data/github-apps/keerth124/keerth124/hello-world,data/github-apps/keerth124/keerth124/investment_oracle,data/github-apps/keerth124/keerth124/JamesGPT,data/github-apps/keerth124/keerth124/kards,data/github-apps/keerth124/keerth124/Kards10,data/github-apps/keerth124/keerth124/multifamilyListings,data/github-apps/keerth124/keerth124/onboarding-toolkit,data/github-apps/keerth124/keerth124/prd_repo,data/github-apps/keerth124/keerth124/summon-slide,data/github-apps/keerth124/keerth124/templating-example,data/github-apps/keerth124/keerth124/templating-example-1,data/github-apps/keerth124/keerth124/testPythonQueens,data/github-apps/keerth124/keerth124/test_quant,data/github-apps/keerth124/keerth124/TradingBots"
       }
     },
     {
@@ -60,7 +60,7 @@
       ],
       "metadata": {
         "group_id": "conjur%2Fauthn-jwt%2Fgithub-keerth124%2Fapps",
-        "workload_id": "data/github-apps/keerth124/keerth124/alpaca-backtrader-api"
+        "workload_id": "data/github-apps/keerth124/keerth124/ABCStore"
       }
     },
     {
@@ -81,7 +81,7 @@
       ],
       "metadata": {
         "group_id": "conjur%2Fauthn-jwt%2Fgithub-keerth124%2Fapps",
-        "workload_id": "data/github-apps/keerth124/keerth124/conjur-github-action"
+        "workload_id": "data/github-apps/keerth124/keerth124/ai-oracle"
       }
     },
     {
@@ -102,7 +102,7 @@
       ],
       "metadata": {
         "group_id": "conjur%2Fauthn-jwt%2Fgithub-keerth124%2Fapps",
-        "workload_id": "data/github-apps/keerth124/keerth124/deepwiki-open"
+        "workload_id": "data/github-apps/keerth124/keerth124/alpaca-backtrader-api"
       }
     },
     {
@@ -123,7 +123,7 @@
       ],
       "metadata": {
         "group_id": "conjur%2Fauthn-jwt%2Fgithub-keerth124%2Fapps",
-        "workload_id": "data/github-apps/keerth124/keerth124/FinAnGPT"
+        "workload_id": "data/github-apps/keerth124/keerth124/conjur-bootstrap-ui"
       }
     },
     {
@@ -144,7 +144,7 @@
       ],
       "metadata": {
         "group_id": "conjur%2Fauthn-jwt%2Fgithub-keerth124%2Fapps",
-        "workload_id": "data/github-apps/keerth124/keerth124/flask-app"
+        "workload_id": "data/github-apps/keerth124/keerth124/conjur-github-action"
       }
     },
     {
@@ -165,7 +165,7 @@
       ],
       "metadata": {
         "group_id": "conjur%2Fauthn-jwt%2Fgithub-keerth124%2Fapps",
-        "workload_id": "data/github-apps/keerth124/keerth124/go-webapp-sample"
+        "workload_id": "data/github-apps/keerth124/keerth124/deepwiki-open"
       }
     },
     {
@@ -186,7 +186,7 @@
       ],
       "metadata": {
         "group_id": "conjur%2Fauthn-jwt%2Fgithub-keerth124%2Fapps",
-        "workload_id": "data/github-apps/keerth124/keerth124/gpt4free"
+        "workload_id": "data/github-apps/keerth124/keerth124/FinAnGPT"
       }
     },
     {
@@ -207,7 +207,406 @@
       ],
       "metadata": {
         "group_id": "conjur%2Fauthn-jwt%2Fgithub-keerth124%2Fapps",
+        "workload_id": "data/github-apps/keerth124/keerth124/flask-app"
+      }
+    },
+    {
+      "id": "add-group-member-009",
+      "description": "Add workload to authenticator apps group",
+      "method": "POST",
+      "path": "/api/groups/conjur%2Fauthn-jwt%2Fgithub-keerth124%2Fapps/members",
+      "body_file": "api/03-add-group-members.jsonl",
+      "body_line": 9,
+      "content_type": "application/json",
+      "expected_status": [
+        200,
+        201,
+        204
+      ],
+      "idempotent_on": [
+        409
+      ],
+      "metadata": {
+        "group_id": "conjur%2Fauthn-jwt%2Fgithub-keerth124%2Fapps",
+        "workload_id": "data/github-apps/keerth124/keerth124/go-webapp-sample"
+      }
+    },
+    {
+      "id": "add-group-member-010",
+      "description": "Add workload to authenticator apps group",
+      "method": "POST",
+      "path": "/api/groups/conjur%2Fauthn-jwt%2Fgithub-keerth124%2Fapps/members",
+      "body_file": "api/03-add-group-members.jsonl",
+      "body_line": 10,
+      "content_type": "application/json",
+      "expected_status": [
+        200,
+        201,
+        204
+      ],
+      "idempotent_on": [
+        409
+      ],
+      "metadata": {
+        "group_id": "conjur%2Fauthn-jwt%2Fgithub-keerth124%2Fapps",
+        "workload_id": "data/github-apps/keerth124/keerth124/gpt4free"
+      }
+    },
+    {
+      "id": "add-group-member-011",
+      "description": "Add workload to authenticator apps group",
+      "method": "POST",
+      "path": "/api/groups/conjur%2Fauthn-jwt%2Fgithub-keerth124%2Fapps/members",
+      "body_file": "api/03-add-group-members.jsonl",
+      "body_line": 11,
+      "content_type": "application/json",
+      "expected_status": [
+        200,
+        201,
+        204
+      ],
+      "idempotent_on": [
+        409
+      ],
+      "metadata": {
+        "group_id": "conjur%2Fauthn-jwt%2Fgithub-keerth124%2Fapps",
+        "workload_id": "data/github-apps/keerth124/keerth124/gridiron-gleanings"
+      }
+    },
+    {
+      "id": "add-group-member-012",
+      "description": "Add workload to authenticator apps group",
+      "method": "POST",
+      "path": "/api/groups/conjur%2Fauthn-jwt%2Fgithub-keerth124%2Fapps/members",
+      "body_file": "api/03-add-group-members.jsonl",
+      "body_line": 12,
+      "content_type": "application/json",
+      "expected_status": [
+        200,
+        201,
+        204
+      ],
+      "idempotent_on": [
+        409
+      ],
+      "metadata": {
+        "group_id": "conjur%2Fauthn-jwt%2Fgithub-keerth124%2Fapps",
+        "workload_id": "data/github-apps/keerth124/keerth124/gridiron-gleanings-57"
+      }
+    },
+    {
+      "id": "add-group-member-013",
+      "description": "Add workload to authenticator apps group",
+      "method": "POST",
+      "path": "/api/groups/conjur%2Fauthn-jwt%2Fgithub-keerth124%2Fapps/members",
+      "body_file": "api/03-add-group-members.jsonl",
+      "body_line": 13,
+      "content_type": "application/json",
+      "expected_status": [
+        200,
+        201,
+        204
+      ],
+      "idempotent_on": [
+        409
+      ],
+      "metadata": {
+        "group_id": "conjur%2Fauthn-jwt%2Fgithub-keerth124%2Fapps",
+        "workload_id": "data/github-apps/keerth124/keerth124/hashi-vault-demo"
+      }
+    },
+    {
+      "id": "add-group-member-014",
+      "description": "Add workload to authenticator apps group",
+      "method": "POST",
+      "path": "/api/groups/conjur%2Fauthn-jwt%2Fgithub-keerth124%2Fapps/members",
+      "body_file": "api/03-add-group-members.jsonl",
+      "body_line": 14,
+      "content_type": "application/json",
+      "expected_status": [
+        200,
+        201,
+        204
+      ],
+      "idempotent_on": [
+        409
+      ],
+      "metadata": {
+        "group_id": "conjur%2Fauthn-jwt%2Fgithub-keerth124%2Fapps",
+        "workload_id": "data/github-apps/keerth124/keerth124/hello-world"
+      }
+    },
+    {
+      "id": "add-group-member-015",
+      "description": "Add workload to authenticator apps group",
+      "method": "POST",
+      "path": "/api/groups/conjur%2Fauthn-jwt%2Fgithub-keerth124%2Fapps/members",
+      "body_file": "api/03-add-group-members.jsonl",
+      "body_line": 15,
+      "content_type": "application/json",
+      "expected_status": [
+        200,
+        201,
+        204
+      ],
+      "idempotent_on": [
+        409
+      ],
+      "metadata": {
+        "group_id": "conjur%2Fauthn-jwt%2Fgithub-keerth124%2Fapps",
+        "workload_id": "data/github-apps/keerth124/keerth124/investment_oracle"
+      }
+    },
+    {
+      "id": "add-group-member-016",
+      "description": "Add workload to authenticator apps group",
+      "method": "POST",
+      "path": "/api/groups/conjur%2Fauthn-jwt%2Fgithub-keerth124%2Fapps/members",
+      "body_file": "api/03-add-group-members.jsonl",
+      "body_line": 16,
+      "content_type": "application/json",
+      "expected_status": [
+        200,
+        201,
+        204
+      ],
+      "idempotent_on": [
+        409
+      ],
+      "metadata": {
+        "group_id": "conjur%2Fauthn-jwt%2Fgithub-keerth124%2Fapps",
         "workload_id": "data/github-apps/keerth124/keerth124/JamesGPT"
+      }
+    },
+    {
+      "id": "add-group-member-017",
+      "description": "Add workload to authenticator apps group",
+      "method": "POST",
+      "path": "/api/groups/conjur%2Fauthn-jwt%2Fgithub-keerth124%2Fapps/members",
+      "body_file": "api/03-add-group-members.jsonl",
+      "body_line": 17,
+      "content_type": "application/json",
+      "expected_status": [
+        200,
+        201,
+        204
+      ],
+      "idempotent_on": [
+        409
+      ],
+      "metadata": {
+        "group_id": "conjur%2Fauthn-jwt%2Fgithub-keerth124%2Fapps",
+        "workload_id": "data/github-apps/keerth124/keerth124/kards"
+      }
+    },
+    {
+      "id": "add-group-member-018",
+      "description": "Add workload to authenticator apps group",
+      "method": "POST",
+      "path": "/api/groups/conjur%2Fauthn-jwt%2Fgithub-keerth124%2Fapps/members",
+      "body_file": "api/03-add-group-members.jsonl",
+      "body_line": 18,
+      "content_type": "application/json",
+      "expected_status": [
+        200,
+        201,
+        204
+      ],
+      "idempotent_on": [
+        409
+      ],
+      "metadata": {
+        "group_id": "conjur%2Fauthn-jwt%2Fgithub-keerth124%2Fapps",
+        "workload_id": "data/github-apps/keerth124/keerth124/Kards10"
+      }
+    },
+    {
+      "id": "add-group-member-019",
+      "description": "Add workload to authenticator apps group",
+      "method": "POST",
+      "path": "/api/groups/conjur%2Fauthn-jwt%2Fgithub-keerth124%2Fapps/members",
+      "body_file": "api/03-add-group-members.jsonl",
+      "body_line": 19,
+      "content_type": "application/json",
+      "expected_status": [
+        200,
+        201,
+        204
+      ],
+      "idempotent_on": [
+        409
+      ],
+      "metadata": {
+        "group_id": "conjur%2Fauthn-jwt%2Fgithub-keerth124%2Fapps",
+        "workload_id": "data/github-apps/keerth124/keerth124/multifamilyListings"
+      }
+    },
+    {
+      "id": "add-group-member-020",
+      "description": "Add workload to authenticator apps group",
+      "method": "POST",
+      "path": "/api/groups/conjur%2Fauthn-jwt%2Fgithub-keerth124%2Fapps/members",
+      "body_file": "api/03-add-group-members.jsonl",
+      "body_line": 20,
+      "content_type": "application/json",
+      "expected_status": [
+        200,
+        201,
+        204
+      ],
+      "idempotent_on": [
+        409
+      ],
+      "metadata": {
+        "group_id": "conjur%2Fauthn-jwt%2Fgithub-keerth124%2Fapps",
+        "workload_id": "data/github-apps/keerth124/keerth124/onboarding-toolkit"
+      }
+    },
+    {
+      "id": "add-group-member-021",
+      "description": "Add workload to authenticator apps group",
+      "method": "POST",
+      "path": "/api/groups/conjur%2Fauthn-jwt%2Fgithub-keerth124%2Fapps/members",
+      "body_file": "api/03-add-group-members.jsonl",
+      "body_line": 21,
+      "content_type": "application/json",
+      "expected_status": [
+        200,
+        201,
+        204
+      ],
+      "idempotent_on": [
+        409
+      ],
+      "metadata": {
+        "group_id": "conjur%2Fauthn-jwt%2Fgithub-keerth124%2Fapps",
+        "workload_id": "data/github-apps/keerth124/keerth124/prd_repo"
+      }
+    },
+    {
+      "id": "add-group-member-022",
+      "description": "Add workload to authenticator apps group",
+      "method": "POST",
+      "path": "/api/groups/conjur%2Fauthn-jwt%2Fgithub-keerth124%2Fapps/members",
+      "body_file": "api/03-add-group-members.jsonl",
+      "body_line": 22,
+      "content_type": "application/json",
+      "expected_status": [
+        200,
+        201,
+        204
+      ],
+      "idempotent_on": [
+        409
+      ],
+      "metadata": {
+        "group_id": "conjur%2Fauthn-jwt%2Fgithub-keerth124%2Fapps",
+        "workload_id": "data/github-apps/keerth124/keerth124/summon-slide"
+      }
+    },
+    {
+      "id": "add-group-member-023",
+      "description": "Add workload to authenticator apps group",
+      "method": "POST",
+      "path": "/api/groups/conjur%2Fauthn-jwt%2Fgithub-keerth124%2Fapps/members",
+      "body_file": "api/03-add-group-members.jsonl",
+      "body_line": 23,
+      "content_type": "application/json",
+      "expected_status": [
+        200,
+        201,
+        204
+      ],
+      "idempotent_on": [
+        409
+      ],
+      "metadata": {
+        "group_id": "conjur%2Fauthn-jwt%2Fgithub-keerth124%2Fapps",
+        "workload_id": "data/github-apps/keerth124/keerth124/templating-example"
+      }
+    },
+    {
+      "id": "add-group-member-024",
+      "description": "Add workload to authenticator apps group",
+      "method": "POST",
+      "path": "/api/groups/conjur%2Fauthn-jwt%2Fgithub-keerth124%2Fapps/members",
+      "body_file": "api/03-add-group-members.jsonl",
+      "body_line": 24,
+      "content_type": "application/json",
+      "expected_status": [
+        200,
+        201,
+        204
+      ],
+      "idempotent_on": [
+        409
+      ],
+      "metadata": {
+        "group_id": "conjur%2Fauthn-jwt%2Fgithub-keerth124%2Fapps",
+        "workload_id": "data/github-apps/keerth124/keerth124/templating-example-1"
+      }
+    },
+    {
+      "id": "add-group-member-025",
+      "description": "Add workload to authenticator apps group",
+      "method": "POST",
+      "path": "/api/groups/conjur%2Fauthn-jwt%2Fgithub-keerth124%2Fapps/members",
+      "body_file": "api/03-add-group-members.jsonl",
+      "body_line": 25,
+      "content_type": "application/json",
+      "expected_status": [
+        200,
+        201,
+        204
+      ],
+      "idempotent_on": [
+        409
+      ],
+      "metadata": {
+        "group_id": "conjur%2Fauthn-jwt%2Fgithub-keerth124%2Fapps",
+        "workload_id": "data/github-apps/keerth124/keerth124/testPythonQueens"
+      }
+    },
+    {
+      "id": "add-group-member-026",
+      "description": "Add workload to authenticator apps group",
+      "method": "POST",
+      "path": "/api/groups/conjur%2Fauthn-jwt%2Fgithub-keerth124%2Fapps/members",
+      "body_file": "api/03-add-group-members.jsonl",
+      "body_line": 26,
+      "content_type": "application/json",
+      "expected_status": [
+        200,
+        201,
+        204
+      ],
+      "idempotent_on": [
+        409
+      ],
+      "metadata": {
+        "group_id": "conjur%2Fauthn-jwt%2Fgithub-keerth124%2Fapps",
+        "workload_id": "data/github-apps/keerth124/keerth124/test_quant"
+      }
+    },
+    {
+      "id": "add-group-member-027",
+      "description": "Add workload to authenticator apps group",
+      "method": "POST",
+      "path": "/api/groups/conjur%2Fauthn-jwt%2Fgithub-keerth124%2Fapps/members",
+      "body_file": "api/03-add-group-members.jsonl",
+      "body_line": 27,
+      "content_type": "application/json",
+      "expected_status": [
+        200,
+        201,
+        204
+      ],
+      "idempotent_on": [
+        409
+      ],
+      "metadata": {
+        "group_id": "conjur%2Fauthn-jwt%2Fgithub-keerth124%2Fapps",
+        "workload_id": "data/github-apps/keerth124/keerth124/TradingBots"
       }
     }
   ]
