@@ -2,6 +2,7 @@ package conjur
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -12,40 +13,21 @@ import (
 
 // GenerateConfig holds all inputs for artifact generation.
 type GenerateConfig struct {
-	Discovery     *ghdisc.DiscoveryResult
-	Tenant        string
-	Audience      string
-	CreateEnabled bool
-	WorkDir       string
-	Verbose       bool
-	DryRun        bool
+	Discovery         *ghdisc.DiscoveryResult
+	Tenant            string
+	Audience          string
+	CreateEnabled     bool
+	WorkDir           string
+	ProvisioningMode  string
+	AuthenticatorName string
+	Verbose           bool
+	DryRun            bool
 }
 
 // GenerateResult summarizes what was generated.
 type GenerateResult struct {
 	AuthenticatorName string
 	WorkloadCount     int
-}
-
-type claimAnalysis struct {
-	Platform          string          `json:"platform"`
-	Mode              string          `json:"mode"`
-	SelectedClaims    selectedClaims  `json:"selected_claims"`
-	AvailableClaims   []claimRecord   `json:"available_claims"`
-	SecurityNotes      []string        `json:"security_notes"`
-	ImplementationNote string          `json:"implementation_note,omitempty"`
-}
-
-type selectedClaims struct {
-	TokenAppProperty string   `json:"token_app_property"`
-	EnforcedClaims   []string `json:"enforced_claims"`
-}
-
-type claimRecord struct {
-	Name           string `json:"name"`
-	Classification string `json:"classification"`
-	Recommended    bool   `json:"recommended"`
-	Explanation    string `json:"explanation"`
 }
 
 // Generate writes the GitHub JWT onboarding artifact set described by the PRD.
@@ -62,9 +44,27 @@ func Generate(cfg GenerateConfig) (*GenerateResult, error) {
 	if cfg.Audience == "" {
 		cfg.Audience = "conjur-cloud"
 	}
+	if cfg.ProvisioningMode == "" {
+		cfg.ProvisioningMode = "bootstrap"
+	}
+	if cfg.ProvisioningMode != "bootstrap" && cfg.ProvisioningMode != "workloads-only" {
+		return nil, fmt.Errorf("unsupported provisioning mode %q", cfg.ProvisioningMode)
+	}
 
-	authnBody, err := writeAuthenticatorArtifact(cfg.Discovery, cfg)
+	analysis, err := loadOrCreateClaimAnalysis(cfg)
 	if err != nil {
+		return nil, err
+	}
+	if err := ghdisc.ValidateGeneratorSupportedSelection(analysis.SelectedClaims); err != nil {
+		return nil, fmt.Errorf("claims analysis selection is not supported by generation: %w", err)
+	}
+
+	authnName := resolvedAuthenticatorName(cfg)
+	if cfg.ProvisioningMode == "bootstrap" {
+		if _, err := writeAuthenticatorArtifact(cfg.Discovery, cfg, analysis.SelectedClaims, authnName); err != nil {
+			return nil, err
+		}
+	} else if err := removeAuthenticatorArtifact(cfg.WorkDir); err != nil {
 		return nil, err
 	}
 
@@ -73,38 +73,39 @@ func Generate(cfg GenerateConfig) (*GenerateResult, error) {
 		return nil, err
 	}
 
-	groupID, err := writeGroupMembersArtifact(authnBody.Name, hosts, cfg)
+	groupID, err := writeGroupMembersArtifact(authnName, hosts, cfg)
 	if err != nil {
 		return nil, err
 	}
 
-	plan := buildPlan(cfg, authnBody.Name, groupID, hosts)
+	plan := buildPlan(cfg, authnName, groupID, hosts)
 	if err := core.WriteJSON(filepath.Join(cfg.WorkDir, "api"), "plan.json", plan); err != nil {
 		return nil, fmt.Errorf("writing plan: %w", err)
 	}
 
-	if err := writeClaimsAnalysis(cfg, authnBody); err != nil {
+	if err := writeClaimsAnalysis(cfg, analysis); err != nil {
 		return nil, err
 	}
-	if err := writeIntegrationArtifacts(cfg, authnBody.Name, hosts); err != nil {
+	if err := writeIntegrationArtifacts(cfg, authnName, hosts); err != nil {
 		return nil, err
 	}
-	if err := writeNextSteps(cfg, authnBody.Name, groupID, len(hosts)); err != nil {
+	if err := writeNextSteps(cfg, authnName, groupID, len(hosts)); err != nil {
 		return nil, err
 	}
-	if err := writeConfig(cfg, authnBody.Name, len(hosts)); err != nil {
+	if err := writeConfig(cfg, authnName, len(hosts)); err != nil {
 		return nil, err
 	}
 
 	return &GenerateResult{
-		AuthenticatorName: authnBody.Name,
+		AuthenticatorName: authnName,
 		WorkloadCount:     len(hosts),
 	}, nil
 }
 
 func buildPlan(cfg GenerateConfig, authnName string, groupID string, hosts []WorkloadHost) *core.Plan {
-	ops := []core.Operation{
-		{
+	ops := []core.Operation{}
+	if cfg.ProvisioningMode == "bootstrap" {
+		ops = append(ops, core.Operation{
 			ID:             "create-authenticator",
 			Description:    "Create GitHub Actions JWT authenticator",
 			Method:         "POST",
@@ -116,17 +117,25 @@ func buildPlan(cfg GenerateConfig, authnName string, groupID string, hosts []Wor
 			Metadata: map[string]string{
 				"authenticator_name": authnName,
 			},
-		},
-		{
-			ID:             "load-workload-policy",
-			Description:    "Create GitHub workload identities under the authenticator identity path",
-			Method:         "POST",
-			Path:           "/policies/conjur/policy/root",
-			BodyFile:       "api/02-workloads.yml",
-			ContentType:    "application/x-yaml",
-			ExpectedStatus: []int{200, 201},
-		},
+		})
 	}
+
+	workloadIDs := make([]string, 0, len(hosts))
+	for _, host := range hosts {
+		workloadIDs = append(workloadIDs, host.FullPath)
+	}
+	ops = append(ops, core.Operation{
+		ID:             "load-workload-policy",
+		Description:    "Create GitHub workload identities under the authenticator identity path",
+		Method:         "POST",
+		Path:           "/policies/conjur/policy/root",
+		BodyFile:       "api/02-workloads.yml",
+		ContentType:    "application/x-yaml",
+		ExpectedStatus: []int{200, 201},
+		Metadata: map[string]string{
+			"workload_ids": strings.Join(workloadIDs, ","),
+		},
+	})
 
 	for i, h := range hosts {
 		ops = append(ops, core.Operation{
@@ -152,6 +161,7 @@ func buildPlan(cfg GenerateConfig, authnName string, groupID string, hosts []Wor
 		Tenant:            cfg.Tenant,
 		AuthenticatorType: "jwt",
 		AuthenticatorName: authnName,
+		ProvisioningMode:  cfg.ProvisioningMode,
 		AppsGroupID:       groupID,
 		IdentityPath:      identityPath(cfg.Discovery.Org),
 		WorkloadCount:     len(hosts),
@@ -159,63 +169,36 @@ func buildPlan(cfg GenerateConfig, authnName string, groupID string, hosts []Wor
 	}
 }
 
-func writeClaimsAnalysis(cfg GenerateConfig, authnBody AuthenticatorBody) error {
-	enforced := authnBody.Data.Identity.EnforcedClaims
-	if enforced == nil {
-		enforced = []string{}
+func removeAuthenticatorArtifact(workDir string) error {
+	path := filepath.Join(workDir, "api", "01-create-authenticator.json")
+	if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("removing stale authenticator artifact: %w", err)
 	}
+	return nil
+}
 
-	analysis := claimAnalysis{
-		Platform: "github",
-		Mode:     "synthetic",
-		SelectedClaims: selectedClaims{
-			TokenAppProperty: authnBody.Data.Identity.TokenAppProperty,
-			EnforcedClaims:   enforced,
-		},
-		AvailableClaims: []claimRecord{
-			{
-				Name:           "repository",
-				Classification: "identity-strong",
-				Recommended:    true,
-				Explanation:    "Binds authentication to a single repository such as acme/api-service.",
-			},
-			{
-				Name:           "environment",
-				Classification: "scope",
-				Recommended:    hasEnvironments(cfg.Discovery.Repos),
-				Explanation:    "Scopes deployments to a named GitHub environment when the workflow requests one.",
-			},
-			{
-				Name:           "repository_owner",
-				Classification: "identity-weak",
-				Recommended:    false,
-				Explanation:    "On its own, this grants every repository in the organization the same identity.",
-			},
-			{
-				Name:           "workflow_ref",
-				Classification: "scope",
-				Recommended:    false,
-				Explanation:    "Ties access to a specific workflow file and ref, which is precise but can be brittle during refactoring.",
-			},
-			{
-				Name:           "run_id",
-				Classification: "ephemeral",
-				Recommended:    false,
-				Explanation:    "Changes on every workflow run and is not suitable for stable workload identity.",
-			},
-		},
-		SecurityNotes: []string{
-			"Use repository as the default identity claim for GitHub Actions.",
-			"Do not use repository_owner by itself unless every repository in the organization should share the same workload identity.",
-			"Environment scoping can improve separation, but it requires a compatible identity strategy before being enforced.",
-		},
-		ImplementationNote: "Live token inspection and interactive claim selection are planned follow-up work; this generator uses the GitHub synthetic defaults from the PRD.",
-	}
-
+func writeClaimsAnalysis(cfg GenerateConfig, analysis ghdisc.ClaimAnalysis) error {
 	if err := core.WriteJSON(cfg.WorkDir, "claims-analysis.json", analysis); err != nil {
 		return fmt.Errorf("writing claims analysis: %w", err)
 	}
 	return nil
+}
+
+func loadOrCreateClaimAnalysis(cfg GenerateConfig) (ghdisc.ClaimAnalysis, error) {
+	analysis, found, err := ghdisc.LoadClaimAnalysis(cfg.WorkDir)
+	if err != nil {
+		return ghdisc.ClaimAnalysis{}, err
+	}
+	if !found {
+		return ghdisc.BuildDefaultClaimAnalysis(cfg.Discovery), nil
+	}
+	if analysis.Platform != "" && analysis.Platform != "github" {
+		return ghdisc.ClaimAnalysis{}, fmt.Errorf("claims-analysis.json is for platform %q, not github", analysis.Platform)
+	}
+	if analysis.SelectedClaims.TokenAppProperty == "" {
+		analysis.SelectedClaims.TokenAppProperty = ghdisc.DefaultTokenAppProperty
+	}
+	return analysis, nil
 }
 
 func writeConfig(cfg GenerateConfig, authnName string, workloadCount int) error {
@@ -223,10 +206,11 @@ func writeConfig(cfg GenerateConfig, authnName string, workloadCount int) error 
 org: %s
 tenant: %s
 workload_auth: jwt
+provisioning_mode: %s
 authenticator_name: %s
 audience: %s
 workload_count: %d
-`, cfg.Discovery.Org, cfg.Tenant, authnName, cfg.Audience, workloadCount)
+`, cfg.Discovery.Org, cfg.Tenant, cfg.ProvisioningMode, authnName, cfg.Audience, workloadCount)
 
 	if err := core.WriteText(cfg.WorkDir, "config.yml", config); err != nil {
 		return fmt.Errorf("writing config.yml: %w", err)
@@ -306,6 +290,10 @@ The workflow must keep:
 }
 
 func writeNextSteps(cfg GenerateConfig, authnName string, groupID string, workloadCount int) error {
+	modeNote := "This plan creates the GitHub authenticator, workloads, and group memberships."
+	if cfg.ProvisioningMode == "workloads-only" {
+		modeNote = "This plan assumes the GitHub authenticator already exists and creates only workloads plus group memberships."
+	}
 	next := fmt.Sprintf(`# Next Steps: GitHub Actions Onboarding
 
 ## Generated Summary
@@ -317,6 +305,10 @@ Conjur Cloud tenant: `+"`%s`"+`
 Authenticator type: `+"`jwt`"+`
 
 Authenticator name: `+"`%s`"+`
+
+Provisioning mode: `+"`%s`"+`
+
+%s
 
 Workload count: `+"`%d`"+`
 
@@ -385,7 +377,7 @@ Expected outcome: the workflow fetches the test secret and the deployment step r
 Synthetic claim analysis is generated from the documented GitHub OIDC schema. Live inspection and interactive claim selection are not implemented in this first GitHub slice.
 
 Environment claims are recorded for review but not enforced by the MVP generator. Enforcing `+"`environment`"+` safely requires a compatible GitHub identity strategy so Conjur can map each token to the correct workload.
-`, cfg.Tenant, authnName, workloadCount, authnName, cfg.Tenant, cfg.WorkDir, cfg.Tenant, cfg.WorkDir, cfg.Tenant, cfg.WorkDir, workloadCount, groupID, authnName, identityPath(cfg.Discovery.Org))
+`, cfg.Tenant, authnName, cfg.ProvisioningMode, modeNote, workloadCount, authnName, cfg.Tenant, cfg.WorkDir, cfg.Tenant, cfg.WorkDir, cfg.Tenant, cfg.WorkDir, workloadCount, groupID, authnName, identityPath(cfg.Discovery.Org))
 
 	if err := core.WriteText(cfg.WorkDir, "NEXT_STEPS.md", next); err != nil {
 		return fmt.Errorf("writing NEXT_STEPS.md: %w", err)
@@ -418,28 +410,17 @@ func appsGroupID(authnName string) string {
 	return strings.ReplaceAll(raw, "/", "%2F")
 }
 
+func resolvedAuthenticatorName(cfg GenerateConfig) string {
+	if cfg.AuthenticatorName != "" {
+		return sanitizeName(cfg.AuthenticatorName)
+	}
+	return authenticatorName(cfg.Discovery.Org)
+}
+
 // workloadID returns the workload host ID for a given repo (and optionally environment).
 func workloadID(identPath, repoFullName string, env string) string {
 	if env != "" {
 		return identPath + "/" + repoFullName + "/" + env
 	}
 	return identPath + "/" + repoFullName
-}
-
-// hasEnvironments returns true if any repo in the discovery result has environments configured.
-func hasEnvironments(repos []ghdisc.RepoInfo) bool {
-	for _, r := range repos {
-		if len(r.Environments) > 0 {
-			return true
-		}
-	}
-	return false
-}
-
-// enforcedClaims returns the generated JWT enforced claims.
-func enforcedClaims(repos []ghdisc.RepoInfo) []string {
-	// Environment scoping is intentionally not emitted in the MVP because the
-	// repository token_app_property maps to one workload per repo. Per-environment
-	// enforcement needs a compatible identity strategy and live token validation.
-	return nil
 }

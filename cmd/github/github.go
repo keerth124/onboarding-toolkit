@@ -36,7 +36,8 @@ Step-by-step:
   conjur-onboard github inspect  --repo <org>/<repo>
   conjur-onboard github generate --tenant <subdomain>
   conjur-onboard github validate --tenant <subdomain>
-  conjur-onboard github apply    --tenant <subdomain>`,
+  conjur-onboard github apply    --tenant <subdomain>
+  conjur-onboard github rollback --tenant <subdomain> --confirm`,
 	}
 
 	cmd.AddCommand(newDiscoverCmd(sf))
@@ -44,6 +45,7 @@ Step-by-step:
 	cmd.AddCommand(newGenerateCmd(sf))
 	cmd.AddCommand(newValidateCmd(sf))
 	cmd.AddCommand(newApplyCmd(sf))
+	cmd.AddCommand(newRollbackCmd(sf))
 	cmd.AddCommand(newExpressCmd(sf))
 
 	return cmd

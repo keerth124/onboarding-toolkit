@@ -20,10 +20,10 @@ const (
 
 // Client is an authenticated HTTP client for Conjur Cloud.
 type Client struct {
-	baseURL  string
-	token    string // base64-encoded Conjur auth token
-	verbose  bool
-	http     *http.Client
+	baseURL string
+	token   string // base64-encoded Conjur auth token
+	verbose bool
+	http    *http.Client
 }
 
 // NewClient authenticates to the Conjur Cloud tenant and returns a ready client.

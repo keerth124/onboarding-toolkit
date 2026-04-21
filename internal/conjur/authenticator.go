@@ -25,16 +25,15 @@ type AuthenticatorData struct {
 
 // AuthenticatorBody is the body for POST /api/authenticators.
 type AuthenticatorBody struct {
-	Type     string            `json:"type"`
-	Subtype  string            `json:"subtype"`
-	Name     string            `json:"name"`
-	Enabled  bool              `json:"enabled"`
-	Data     AuthenticatorData `json:"data"`
+	Type    string            `json:"type"`
+	Subtype string            `json:"subtype"`
+	Name    string            `json:"name"`
+	Enabled bool              `json:"enabled"`
+	Data    AuthenticatorData `json:"data"`
 }
 
 // buildAuthenticatorBody constructs the deterministic authenticator request body.
-func buildAuthenticatorBody(disc *ghdisc.DiscoveryResult, cfg GenerateConfig) AuthenticatorBody {
-	authnName := authenticatorName(disc.Org)
+func buildAuthenticatorBody(disc *ghdisc.DiscoveryResult, cfg GenerateConfig, selection ghdisc.ClaimSelection, authnName string) AuthenticatorBody {
 	identPath := identityPath(disc.Org)
 
 	return AuthenticatorBody{
@@ -47,17 +46,17 @@ func buildAuthenticatorBody(disc *ghdisc.DiscoveryResult, cfg GenerateConfig) Au
 			Issuer:   disc.OIDCIssuer,
 			Audience: cfg.Audience,
 			Identity: AuthenticatorIdentity{
-				TokenAppProperty: "repository",
+				TokenAppProperty: selection.TokenAppProperty,
 				IdentityPath:     identPath,
-				EnforcedClaims:   enforcedClaims(disc.Repos),
+				EnforcedClaims:   selection.EnforcedClaims,
 			},
 		},
 	}
 }
 
 // writeAuthenticatorArtifact writes 01-create-authenticator.json.
-func writeAuthenticatorArtifact(disc *ghdisc.DiscoveryResult, cfg GenerateConfig) (AuthenticatorBody, error) {
-	body := buildAuthenticatorBody(disc, cfg)
+func writeAuthenticatorArtifact(disc *ghdisc.DiscoveryResult, cfg GenerateConfig, selection ghdisc.ClaimSelection, authnName string) (AuthenticatorBody, error) {
+	body := buildAuthenticatorBody(disc, cfg, selection, authnName)
 	destDir := filepath.Join(cfg.WorkDir, "api")
 	if err := core.WriteJSON(destDir, "01-create-authenticator.json", body); err != nil {
 		return body, fmt.Errorf("writing authenticator artifact: %w", err)

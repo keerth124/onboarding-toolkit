@@ -10,8 +10,8 @@ import (
 )
 
 func newApplyCmd(sf *sharedFlags) *cobra.Command {
-	var tenant       string
-	var username     string
+	var tenant string
+	var username string
 	var skipValidate bool
 
 	cmd := &cobra.Command{

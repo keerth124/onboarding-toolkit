@@ -243,7 +243,7 @@ conjur-onboard-<platform>-<timestamp>/
 └── NEXT_STEPS.md                 # Human-readable walkthrough, the actual deliverable
 ```
 
-**Note on workload creation:** the v2 REST API documentation covers authenticator creation and group membership but does not (at the time of this PRD) document a dedicated "create workload" endpoint separate from policy loading. Workload resources are therefore created via the existing policy load endpoint (`POST /policies/...`), with a minimal YAML body that creates the workload resource under the policy branch specified in the authenticator's `identity_path`. This is documented as open question §11.7 and the implementer should verify current API coverage before committing to this approach — if a dedicated workload-creation endpoint exists, COT should use it.
+**Note on workload creation and deletion:** workload resources are currently created through policy loading (`POST /policies/...`) with a minimal YAML body under the authenticator `identity_path`. The Secrets Manager SaaS v2 API includes a workload deletion endpoint, so rollback can delete generated workloads after removing group memberships. If a dedicated workload creation endpoint becomes available, COT should swap workload creation behind the shared provisioning interface.
 
 ---
 
@@ -446,6 +446,12 @@ The shared core is responsible for:
 - `data.identity.identity_path`: `data/github-apps/<org>`
 - `data.identity.token_app_property`: `repository` (default) or customer selection
 - `data.audience`: `conjur-cloud` (default; overridable via `--audience`)
+
+**GitHub provisioning modes:**
+- `bootstrap`: creates the org-level GitHub authenticator, creates workloads, and adds workloads to the authenticator `apps` group. This is the first-run setup mode.
+- `workloads-only`: assumes the org-level GitHub authenticator already exists and only creates workloads plus group memberships. This is the expected recurring mode for onboarding additional repositories in the same GitHub org.
+
+For a single GitHub organization, COT should create at most one Conjur authenticator by default: `github-<org>`. Additional runs for the same org should not require authenticator creation. `workloads-only` derives the authenticator name as `github-<org>` unless `--authenticator-name` is supplied.
 
 **Recommended default identity claims:**
 - `repository` (primary — set as `token_app_property`)
@@ -876,6 +882,11 @@ Analogous configurations are generated for GCP and Azure variants using the appr
 - Generated `api/03-add-group-members.jsonl` contains one JSON line per workload, each suitable as a body for `POST /api/groups/{url-encoded-apps-group-id}/members` with `kind: workload` and the workload's full path as `id`.
 - `api/plan.json` lists all calls in execution order with method, path, and expected success response code per call.
 - When `apply` runs successfully, the authenticator, workloads, and group memberships all exist on the tenant, verifiable via GET calls on each resource.
+- `conjur-onboard github generate --provisioning-mode bootstrap` includes the `POST /api/authenticators` operation.
+- `conjur-onboard github generate --provisioning-mode workloads-only` omits authenticator creation and assumes the authenticator already exists.
+- `--authenticator-name <name>` overrides the deterministic `github-<org>` authenticator name used in workloads-only mode and group membership paths.
+- `conjur-onboard github validate` is mode-aware: `bootstrap` allows the authenticator to be absent but rejects a conflicting existing authenticator; `workloads-only` requires the named authenticator to already exist before apply.
+- Rollback deletes only resources created by the current plan: workloads and group memberships for workloads-only mode, and additionally the authenticator for bootstrap mode only when the authenticator creation operation succeeded.
 
 #### B5. GitHub integration snippet
 
@@ -1260,7 +1271,7 @@ Analogous configurations are generated for GCP and Azure variants using the appr
 4. Should the tool produce CI/CD configuration in the customer's existing version control via PR, rather than just writing files locally? (v2 consideration.)
 5. For customers with very large orgs (1000+ repos), is per-repo workload generation the right default, or should we generate per-repo-group workloads with fewer, broader identity bindings?
 6. How should COT handle customers who later need Conjur OSS or Enterprise support — separate tool, mode flag, or a shared core with pluggable provisioning backends?
-7. **Workload creation endpoint.** The SaaS v2 REST API documentation covers authenticator creation and group membership. Does v2 include a dedicated workload creation endpoint? If so, COT should use it in preference to the policy load API. If not, when is one expected, and should COT abstract this behind a provisioning interface so it can be swapped without user-visible changes?
+7. **Workload creation endpoint.** The SaaS v2 REST API documentation includes workload deletion, but workload creation is still implemented through policy loading. Does v2 include or plan a dedicated workload creation endpoint? If so, COT should use it in preference to the policy load API.
 8. **Authenticator deletion endpoint.** The documented create-authenticator endpoint is `POST /api/authenticators`. Is the delete counterpart `DELETE /api/authenticators/{name}`, or does it require a different form? Rollback depends on this being confirmed.
 9. **Azure authenticator v2 API body shape.** The v2 create-authenticator doc snapshot used to draft this PRD lists `jwt`, `aws_iam`, and `certificate` as supported `type` values. GCP and Azure authenticators are documented elsewhere as `authn-gcp` and `authn-azure`. Confirm at implementation time: (a) the exact `type` value strings the v2 POST accepts for GCP and Azure; (b) whether Azure requires configuration variables in the `data` object (Azure AD tenant ID, etc.) at authenticator creation time; (c) whether GCP's singleton constraint is enforced server-side or client-must-enforce.
 10. **CyberArk Identity OAuth flow for tenant auth.** Confirm the documented OAuth2 authorization-code flow (endpoints, scopes, PKCE requirements) for obtaining a tenant auth token via CyberArk Identity. If no public OAuth flow exists, tenant auth falls back to API key only for v1.
@@ -1295,7 +1306,8 @@ Before implementation begins, the team must verify current documentation for:
 - `POST /api/authenticators` body shapes for all `type` values in scope: `jwt`, `aws_iam`, `gcp`, `azure`. Specifically the GCP and Azure bodies, which were not shown in the snapshot used to draft this PRD (§11.9).
 - `DELETE /api/authenticators/{name}` endpoint existence and exact shape (§11.8).
 - `POST /api/groups/{identifier}/members` and its `DELETE` counterpart — confirmed in the doc snapshot.
-- Workload creation endpoint (§11.7) — confirm whether a v2 REST endpoint exists or policy load is the correct path.
+- Workload creation endpoint (§11.7) — confirm whether a v2 REST create endpoint exists or policy load is the correct path.
+- Workload deletion endpoint — confirm final path and identifier encoding for generated rollback calls.
 - Authenticator update / rename semantics (§11.11).
 
 **Integration versions:**

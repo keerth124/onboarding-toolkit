@@ -28,6 +28,7 @@ type Plan struct {
 	Tenant            string      `json:"tenant"`
 	AuthenticatorType string      `json:"authenticator_type"`
 	AuthenticatorName string      `json:"authenticator_name"`
+	ProvisioningMode  string      `json:"provisioning_mode,omitempty"`
 	AppsGroupID       string      `json:"apps_group_id"`
 	IdentityPath      string      `json:"identity_path"`
 	WorkloadCount     int         `json:"workload_count"`

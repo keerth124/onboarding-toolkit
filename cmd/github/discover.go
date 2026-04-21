@@ -9,8 +9,9 @@ import (
 )
 
 func newDiscoverCmd(sf *sharedFlags) *cobra.Command {
-	var org   string
+	var org string
 	var token string
+	var reposFromFile string
 
 	cmd := &cobra.Command{
 		Use:   "discover",
@@ -22,6 +23,7 @@ Output is written to discovery.json in the working directory.
 
 Examples:
   conjur-onboard github discover --org acme-corp
+  conjur-onboard github discover --org acme-corp --repos-from-file repos.txt
   conjur-onboard github discover --org acme-corp --token ghp_xxx`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if org == "" {
@@ -33,15 +35,21 @@ Examples:
 				return err
 			}
 
+			repoNames, err := loadRepoNames(reposFromFile)
+			if err != nil {
+				return err
+			}
+
 			wd, err := core.EnsureWorkDir(*sf.workDir)
 			if err != nil {
 				return fmt.Errorf("work dir: %w", err)
 			}
 
 			cfg := ghdisc.DiscoverConfig{
-				Org:     org,
-				Token:   tok,
-				Verbose: *sf.verbose,
+				Org:       org,
+				Token:     tok,
+				RepoNames: repoNames,
+				Verbose:   *sf.verbose,
 			}
 
 			result, err := ghdisc.Discover(cmd.Context(), cfg)
@@ -61,6 +69,7 @@ Examples:
 
 	cmd.Flags().StringVar(&org, "org", "", "GitHub organization name (required)")
 	cmd.Flags().StringVar(&token, "token", "", "GitHub personal access token (or set GITHUB_TOKEN)")
+	cmd.Flags().StringVar(&reposFromFile, "repos-from-file", "", "Optional file with one repo name or owner/name per line")
 
 	return cmd
 }

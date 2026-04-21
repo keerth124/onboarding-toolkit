@@ -11,22 +11,25 @@ import (
 )
 
 func newExpressCmd(sf *sharedFlags) *cobra.Command {
-	var org           string
-	var token         string
-	var tenant        string
-	var username      string
-	var audience      string
+	var org string
+	var token string
+	var tenant string
+	var username string
+	var audience string
+	var reposFromFile string
+	var provisioningMode string
+	var authenticatorName string
 	var createDisabled bool
-	var autoApply     bool
+	var autoApply bool
 
 	cmd := &cobra.Command{
 		Use:   "express",
-		Short: "Run discover → generate → apply end-to-end with best-practice defaults",
+		Short: "Run discover, generate, and optionally apply end-to-end with best-practice defaults",
 		Long: `Express mode runs the full onboarding flow in a single command using
 CyberArk Professional Services recommended defaults:
 
   Identity claim  : repository  (binds workload to the specific repo)
-  Enforced claims : environment (when repos have environments configured)
+  Enforced claims : none in the MVP generator
   Audience        : conjur-cloud
 
 All generated artifacts are written to the working directory for review.
@@ -40,6 +43,8 @@ reported for review but not enforced by the MVP generator. To customize, re-run 
 
 Examples:
   conjur-onboard github express --org acme-corp --tenant myco
+  conjur-onboard github express --org acme-corp --tenant myco --provisioning-mode workloads-only
+  conjur-onboard github express --org acme-corp --tenant myco --repos-from-file repos.txt
   CONJUR_API_KEY=xxx conjur-onboard github express --org acme-corp --tenant myco --username admin --apply`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if org == "" {
@@ -54,17 +59,22 @@ Examples:
 				return err
 			}
 
+			repoNames, err := loadRepoNames(reposFromFile)
+			if err != nil {
+				return err
+			}
+
 			wd, err := core.EnsureWorkDir(*sf.workDir)
 			if err != nil {
 				return fmt.Errorf("work dir: %w", err)
 			}
 
-			// ── Step 1: Discover ─────────────────────────────────────────────
 			fmt.Println("==> Step 1/3: Discovering GitHub org configuration...")
 			discCfg := ghdisc.DiscoverConfig{
-				Org:     org,
-				Token:   tok,
-				Verbose: *sf.verbose,
+				Org:       org,
+				Token:     tok,
+				RepoNames: repoNames,
+				Verbose:   *sf.verbose,
 			}
 			disc, err := ghdisc.Discover(cmd.Context(), discCfg)
 			if err != nil {
@@ -75,26 +85,27 @@ Examples:
 			}
 			fmt.Printf("    Found %d repos in org %q\n", len(disc.Repos), org)
 
-			// ── Step 2: Generate ─────────────────────────────────────────────
 			fmt.Println("==> Step 2/3: Generating Conjur API artifacts...")
 			fmt.Println("    Using recommended primary identity claim: 'repository'")
 			gcfg := conjur.GenerateConfig{
-				Discovery:     disc,
-				Tenant:        tenant,
-				Audience:      audience,
-				CreateEnabled: !createDisabled,
-				WorkDir:       wd,
-				Verbose:       *sf.verbose,
-				DryRun:        *sf.dryRun,
+				Discovery:         disc,
+				Tenant:            tenant,
+				Audience:          audience,
+				CreateEnabled:     !createDisabled,
+				WorkDir:           wd,
+				ProvisioningMode:  provisioningMode,
+				AuthenticatorName: authenticatorName,
+				Verbose:           *sf.verbose,
+				DryRun:            *sf.dryRun,
 			}
 			plan, err := conjur.Generate(gcfg)
 			if err != nil {
 				return fmt.Errorf("generation: %w", err)
 			}
 			fmt.Printf("    Authenticator : %s\n", plan.AuthenticatorName)
+			fmt.Printf("    Mode          : %s\n", provisioningMode)
 			fmt.Printf("    Workloads     : %d\n", plan.WorkloadCount)
 
-			// ── Step 3: Apply ────────────────────────────────────────────────
 			if !autoApply {
 				fmt.Printf("\nReview the generated policy at %s/api/\n", wd)
 				fmt.Printf("Then run:\n")
@@ -159,6 +170,9 @@ Examples:
 	cmd.Flags().StringVar(&tenant, "tenant", "", "Conjur Cloud tenant subdomain (required)")
 	cmd.Flags().StringVar(&username, "username", "", "Conjur username (required with --apply)")
 	cmd.Flags().StringVar(&audience, "audience", "conjur-cloud", "JWT audience value")
+	cmd.Flags().StringVar(&reposFromFile, "repos-from-file", "", "Optional file with one repo name or owner/name per line")
+	cmd.Flags().StringVar(&provisioningMode, "provisioning-mode", "bootstrap", "Provisioning mode: bootstrap or workloads-only")
+	cmd.Flags().StringVar(&authenticatorName, "authenticator-name", "", "Existing authenticator name override for workloads-only mode")
 	cmd.Flags().BoolVar(&createDisabled, "create-disabled", false, "Create authenticator in disabled state")
 	cmd.Flags().BoolVar(&autoApply, "apply", false, "Apply to tenant automatically without prompting")
 

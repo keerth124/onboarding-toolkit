@@ -5,9 +5,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"path/filepath"
+	"sort"
+	"strings"
 	"time"
 )
 
@@ -18,9 +21,23 @@ const (
 
 // DiscoverConfig holds inputs for the discovery operation.
 type DiscoverConfig struct {
-	Org     string
-	Token   string
-	Verbose bool
+	Org       string
+	Token     string
+	RepoNames []string
+	Verbose   bool
+}
+
+// OrgInfo holds organization metadata relevant to discovery and review.
+type OrgInfo struct {
+	ID           int64    `json:"id"`
+	Login        string   `json:"login"`
+	Name         string   `json:"name,omitempty"`
+	NodeID       string   `json:"node_id,omitempty"`
+	PlanName     string   `json:"plan_name,omitempty"`
+	PlanSpace    int      `json:"plan_space,omitempty"`
+	PrivateRepos int      `json:"private_repos,omitempty"`
+	Enterprise   string   `json:"enterprise,omitempty"`
+	Warnings     []string `json:"warnings,omitempty"`
 }
 
 // RepoInfo holds per-repository metadata relevant to Conjur onboarding.
@@ -33,54 +50,80 @@ type RepoInfo struct {
 	Archived      bool     `json:"archived"`
 }
 
+// OIDCSubCustomization records GitHub Actions OIDC subject customization.
+type OIDCSubCustomization struct {
+	Detected         bool     `json:"detected"`
+	IncludeClaimKeys []string `json:"include_claim_keys,omitempty"`
+	Warning          string   `json:"warning,omitempty"`
+}
+
 // DiscoveryResult is the normalized output written to discovery.json.
 type DiscoveryResult struct {
-	Platform           string     `json:"platform"`
-	Org                string     `json:"org"`
-	OIDCIssuer         string     `json:"oidc_issuer"`
-	JWKSUri            string     `json:"jwks_uri"`
-	Repos              []RepoInfo `json:"repos"`
-	SubClaimCustomized bool       `json:"sub_claim_customized"`
-	DiscoveredAt       string     `json:"discovered_at"`
+	Platform             string               `json:"platform"`
+	Org                  string               `json:"org"`
+	OrgInfo              OrgInfo              `json:"org_info"`
+	OIDCIssuer           string               `json:"oidc_issuer"`
+	JWKSUri              string               `json:"jwks_uri"`
+	Repos                []RepoInfo           `json:"repos"`
+	SubClaimCustomized   bool                 `json:"sub_claim_customized"`
+	OIDCSubCustomization OIDCSubCustomization `json:"oidc_sub_customization"`
+	Warnings             []string             `json:"warnings,omitempty"`
+	DiscoveredAt         string               `json:"discovered_at"`
 }
 
 // Discover enumerates repos and OIDC configuration for a GitHub org.
 func Discover(ctx context.Context, cfg DiscoverConfig) (*DiscoveryResult, error) {
 	client := &http.Client{Timeout: 30 * time.Second}
 
-	repos, err := listRepos(ctx, client, cfg)
+	orgInfo, err := getOrgInfo(ctx, client, cfg)
+	if err != nil {
+		return nil, fmt.Errorf("getting org metadata: %w", err)
+	}
+
+	oidcCustomization, err := getOIDCSubCustomization(ctx, client, cfg)
+	if err != nil {
+		return nil, fmt.Errorf("getting OIDC subject customization: %w", err)
+	}
+
+	repos, err := discoverRepos(ctx, client, cfg)
 	if err != nil {
 		return nil, fmt.Errorf("listing repos: %w", err)
 	}
 
-	// Fetch environments for each repo concurrently (bounded).
 	enriched := make([]RepoInfo, 0, len(repos))
-	for _, r := range repos {
-		if r.Archived {
+	var warnings []string
+	for _, repo := range repos {
+		if repo.Archived {
 			continue
 		}
-		envs, err := listEnvironments(ctx, client, cfg, r.FullName)
-		if err != nil {
-			if cfg.Verbose {
-				fmt.Fprintf(os.Stderr, "  warn: could not fetch environments for %s: %v\n", r.FullName, err)
-			}
-		}
-		r.Environments = envs
-		enriched = append(enriched, r)
 
-		if cfg.Verbose {
-			fmt.Printf("  discovered repo: %s  (environments: %v)\n", r.FullName, envs)
+		envs, err := listEnvironments(ctx, client, cfg, repo.FullName)
+		if err != nil {
+			warning := fmt.Sprintf("could not fetch environments for %s: %v", repo.FullName, err)
+			warnings = append(warnings, warning)
+			verbosef(cfg, "  warn: %s\n", warning)
 		}
+		repo.Environments = envs
+		enriched = append(enriched, repo)
+
+		verbosef(cfg, "  discovered repo: %s (environments: %v)\n", repo.FullName, envs)
+	}
+
+	if oidcCustomization.Warning != "" {
+		warnings = append(warnings, oidcCustomization.Warning)
 	}
 
 	return &DiscoveryResult{
-		Platform:           "github",
-		Org:                cfg.Org,
-		OIDCIssuer:         "https://token.actions.githubusercontent.com",
-		JWKSUri:            "https://token.actions.githubusercontent.com/.well-known/jwks",
-		Repos:              enriched,
-		SubClaimCustomized: false, // future: detect via org settings API
-		DiscoveredAt:       time.Now().UTC().Format(time.RFC3339),
+		Platform:             "github",
+		Org:                  cfg.Org,
+		OrgInfo:              orgInfo,
+		OIDCIssuer:           "https://token.actions.githubusercontent.com",
+		JWKSUri:              "https://token.actions.githubusercontent.com/.well-known/jwks",
+		Repos:                enriched,
+		SubClaimCustomized:   oidcCustomization.Detected,
+		OIDCSubCustomization: oidcCustomization,
+		Warnings:             warnings,
+		DiscoveredAt:         time.Now().UTC().Format(time.RFC3339),
 	}, nil
 }
 
@@ -98,56 +141,149 @@ func LoadDiscovery(wd string) (*DiscoveryResult, error) {
 	return &result, nil
 }
 
-// listRepos fetches all non-archived repos for the org (paginated).
+func discoverRepos(ctx context.Context, client *http.Client, cfg DiscoverConfig) ([]RepoInfo, error) {
+	if len(cfg.RepoNames) > 0 {
+		return getSelectedRepos(ctx, client, cfg)
+	}
+	return listRepos(ctx, client, cfg)
+}
+
+func getOrgInfo(ctx context.Context, client *http.Client, cfg DiscoverConfig) (OrgInfo, error) {
+	url := fmt.Sprintf("%s/orgs/%s", githubAPIBase, cfg.Org)
+
+	var body struct {
+		ID           int64  `json:"id"`
+		Login        string `json:"login"`
+		Name         string `json:"name"`
+		NodeID       string `json:"node_id"`
+		PrivateRepos int    `json:"total_private_repos"`
+		Plan         struct {
+			Name  string `json:"name"`
+			Space int    `json:"space"`
+		} `json:"plan"`
+		Enterprise struct {
+			Slug string `json:"slug"`
+			Name string `json:"name"`
+		} `json:"enterprise"`
+	}
+
+	resp, err := getJSON(ctx, client, cfg, url, &body)
+	if err != nil {
+		return OrgInfo{}, err
+	}
+	if resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden {
+		return OrgInfo{}, authError(resp, "read:org")
+	}
+	if resp.StatusCode == http.StatusNotFound {
+		return OrgInfo{}, fmt.Errorf("organization %q was not found or is not visible to the token", cfg.Org)
+	}
+	if resp.StatusCode != http.StatusOK {
+		return OrgInfo{}, fmt.Errorf("GitHub API returned %d for org metadata", resp.StatusCode)
+	}
+
+	enterprise := body.Enterprise.Slug
+	if enterprise == "" {
+		enterprise = body.Enterprise.Name
+	}
+
+	return OrgInfo{
+		ID:           body.ID,
+		Login:        body.Login,
+		Name:         body.Name,
+		NodeID:       body.NodeID,
+		PlanName:     body.Plan.Name,
+		PlanSpace:    body.Plan.Space,
+		PrivateRepos: body.PrivateRepos,
+		Enterprise:   enterprise,
+	}, nil
+}
+
+func getOIDCSubCustomization(ctx context.Context, client *http.Client, cfg DiscoverConfig) (OIDCSubCustomization, error) {
+	url := fmt.Sprintf("%s/orgs/%s/actions/oidc/customization/sub", githubAPIBase, cfg.Org)
+
+	var body struct {
+		IncludeClaimKeys []string `json:"include_claim_keys"`
+	}
+
+	resp, err := getJSON(ctx, client, cfg, url, &body)
+	if err != nil {
+		return OIDCSubCustomization{}, err
+	}
+	if resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden {
+		return OIDCSubCustomization{}, authError(resp, "read:org")
+	}
+	if resp.StatusCode == http.StatusNotFound {
+		return OIDCSubCustomization{
+			Detected: false,
+			Warning:  "OIDC subject customization endpoint returned 404; org-level customization could not be detected",
+		}, nil
+	}
+	if resp.StatusCode != http.StatusOK {
+		return OIDCSubCustomization{}, fmt.Errorf("GitHub API returned %d for org OIDC subject customization", resp.StatusCode)
+	}
+
+	sort.Strings(body.IncludeClaimKeys)
+	return OIDCSubCustomization{
+		Detected:         len(body.IncludeClaimKeys) > 0,
+		IncludeClaimKeys: body.IncludeClaimKeys,
+	}, nil
+}
+
+func getSelectedRepos(ctx context.Context, client *http.Client, cfg DiscoverConfig) ([]RepoInfo, error) {
+	repos := make([]RepoInfo, 0, len(cfg.RepoNames))
+	for _, repoName := range cfg.RepoNames {
+		fullName := normalizeRepoName(cfg.Org, repoName)
+		url := fmt.Sprintf("%s/repos/%s", githubAPIBase, fullName)
+
+		var body repoResponse
+		resp, err := getJSON(ctx, client, cfg, url, &body)
+		if err != nil {
+			return nil, err
+		}
+		if resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden {
+			return nil, authError(resp, "repo")
+		}
+		if resp.StatusCode == http.StatusNotFound {
+			return nil, fmt.Errorf("repository %q was not found or is not visible to the token", fullName)
+		}
+		if resp.StatusCode != http.StatusOK {
+			return nil, fmt.Errorf("GitHub API returned %d for repository %s", resp.StatusCode, fullName)
+		}
+
+		repos = append(repos, body.toRepoInfo())
+	}
+	return repos, nil
+}
+
+// listRepos fetches all repos visible to the token for the org.
 func listRepos(ctx context.Context, client *http.Client, cfg DiscoverConfig) ([]RepoInfo, error) {
 	var all []RepoInfo
 	page := 1
 	for {
 		url := fmt.Sprintf("%s/orgs/%s/repos?type=all&per_page=%d&page=%d", githubAPIBase, cfg.Org, pageSize, page)
-		req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+
+		var pageRepos []repoResponse
+		resp, err := getJSON(ctx, client, cfg, url, &pageRepos)
 		if err != nil {
 			return nil, err
 		}
-		req.Header.Set("Authorization", "Bearer "+cfg.Token)
-		req.Header.Set("Accept", "application/vnd.github+json")
-		req.Header.Set("X-GitHub-Api-Version", "2022-11-28")
-
-		resp, err := client.Do(req)
-		if err != nil {
-			return nil, fmt.Errorf("GET %s: %w", url, err)
+		if resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden {
+			return nil, authError(resp, "repo")
 		}
-		defer resp.Body.Close()
-
-		if resp.StatusCode == http.StatusUnauthorized {
-			return nil, fmt.Errorf("GitHub token invalid or missing required scopes (repo, read:org). Run: gh auth refresh -s repo,read:org")
+		if resp.StatusCode == http.StatusNotFound {
+			return nil, fmt.Errorf("organization %q was not found or repositories are not visible to the token", cfg.Org)
 		}
 		if resp.StatusCode != http.StatusOK {
 			return nil, fmt.Errorf("GitHub API returned %d for org repos", resp.StatusCode)
 		}
 
-		var page_repos []struct {
-			Name          string `json:"name"`
-			FullName      string `json:"full_name"`
-			DefaultBranch string `json:"default_branch"`
-			Visibility    string `json:"visibility"`
-			Archived      bool   `json:"archived"`
-		}
-		if err := json.NewDecoder(resp.Body).Decode(&page_repos); err != nil {
-			return nil, fmt.Errorf("decoding repos response: %w", err)
-		}
-		if len(page_repos) == 0 {
+		if len(pageRepos) == 0 {
 			break
 		}
-		for _, r := range page_repos {
-			all = append(all, RepoInfo{
-				Name:          r.Name,
-				FullName:      r.FullName,
-				DefaultBranch: r.DefaultBranch,
-				Visibility:    r.Visibility,
-				Archived:      r.Archived,
-			})
+		for _, repo := range pageRepos {
+			all = append(all, repo.toRepoInfo())
 		}
-		if len(page_repos) < pageSize {
+		if len(pageRepos) < pageSize {
 			break
 		}
 		page++
@@ -157,41 +293,147 @@ func listRepos(ctx context.Context, client *http.Client, cfg DiscoverConfig) ([]
 
 // listEnvironments returns environment names for a given repo.
 func listEnvironments(ctx context.Context, client *http.Client, cfg DiscoverConfig, fullName string) ([]string, error) {
-	url := fmt.Sprintf("%s/repos/%s/environments?per_page=100", githubAPIBase, fullName)
+	var names []string
+	page := 1
+	for {
+		url := fmt.Sprintf("%s/repos/%s/environments?per_page=%d&page=%d", githubAPIBase, fullName, pageSize, page)
+
+		var body struct {
+			Environments []struct {
+				Name string `json:"name"`
+			} `json:"environments"`
+		}
+
+		resp, err := getJSON(ctx, client, cfg, url, &body)
+		if err != nil {
+			return nil, err
+		}
+		if resp.StatusCode == http.StatusNotFound {
+			return nil, nil
+		}
+		if resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden {
+			return nil, authError(resp, "repo")
+		}
+		if resp.StatusCode != http.StatusOK {
+			return nil, fmt.Errorf("environments API returned %d", resp.StatusCode)
+		}
+
+		for _, env := range body.Environments {
+			names = append(names, env.Name)
+		}
+		if len(body.Environments) < pageSize {
+			break
+		}
+		page++
+	}
+
+	sort.Strings(names)
+	return names, nil
+}
+
+type repoResponse struct {
+	Name          string `json:"name"`
+	FullName      string `json:"full_name"`
+	DefaultBranch string `json:"default_branch"`
+	Visibility    string `json:"visibility"`
+	Archived      bool   `json:"archived"`
+}
+
+func (r repoResponse) toRepoInfo() RepoInfo {
+	return RepoInfo{
+		Name:          r.Name,
+		FullName:      r.FullName,
+		DefaultBranch: r.DefaultBranch,
+		Visibility:    r.Visibility,
+		Archived:      r.Archived,
+	}
+}
+
+func getJSON(ctx context.Context, client *http.Client, cfg DiscoverConfig, url string, dest any) (*http.Response, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("Authorization", "Bearer "+cfg.Token)
-	req.Header.Set("Accept", "application/vnd.github+json")
-	req.Header.Set("X-GitHub-Api-Version", "2022-11-28")
+	setGitHubHeaders(req, cfg.Token)
+
+	verbosef(cfg, "  [github] GET %s\n", url)
 
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("GET %s: %w", url, err)
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode == http.StatusNotFound {
-		// Repo has no environments — normal for many repos.
-		return nil, nil
-	}
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("environments API returned %d", resp.StatusCode)
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		io.Copy(io.Discard, resp.Body)
+		return resp, nil
 	}
 
-	var body struct {
-		Environments []struct {
-			Name string `json:"name"`
-		} `json:"environments"`
+	if err := json.NewDecoder(resp.Body).Decode(dest); err != nil {
+		return nil, fmt.Errorf("decoding %s response: %w", url, err)
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
-		return nil, err
-	}
+	return resp, nil
+}
 
-	names := make([]string, 0, len(body.Environments))
-	for _, e := range body.Environments {
-		names = append(names, e.Name)
+func setGitHubHeaders(req *http.Request, token string) {
+	if token != "" {
+		req.Header.Set("Authorization", "Bearer "+token)
 	}
-	return names, nil
+	req.Header.Set("Accept", "application/vnd.github+json")
+	req.Header.Set("X-GitHub-Api-Version", "2022-11-28")
+}
+
+func authError(resp *http.Response, requiredScopes ...string) error {
+	current := parseScopes(resp.Header.Get("X-OAuth-Scopes"))
+	missing := missingScopes(current, requiredScopes)
+	if len(current) == 0 {
+		return fmt.Errorf("GitHub token is missing required access for %s; run: gh auth refresh -s %s", strings.Join(requiredScopes, ","), strings.Join(requiredScopes, ","))
+	}
+	if len(missing) > 0 {
+		return fmt.Errorf("GitHub token scopes are missing %s (current scopes: %s). Run: gh auth refresh -s %s", strings.Join(missing, ","), strings.Join(current, ","), strings.Join(requiredScopes, ","))
+	}
+	return fmt.Errorf("GitHub API returned %d despite required scopes %s; verify org access and token permissions", resp.StatusCode, strings.Join(requiredScopes, ","))
+}
+
+func parseScopes(raw string) []string {
+	if raw == "" {
+		return nil
+	}
+	var scopes []string
+	for _, scope := range strings.Split(raw, ",") {
+		scope = strings.TrimSpace(scope)
+		if scope != "" {
+			scopes = append(scopes, scope)
+		}
+	}
+	sort.Strings(scopes)
+	return scopes
+}
+
+func missingScopes(current []string, required []string) []string {
+	have := make(map[string]bool, len(current))
+	for _, scope := range current {
+		have[scope] = true
+	}
+	var missing []string
+	for _, scope := range required {
+		if !have[scope] {
+			missing = append(missing, scope)
+		}
+	}
+	return missing
+}
+
+func normalizeRepoName(org string, repo string) string {
+	repo = strings.TrimSpace(repo)
+	if strings.Contains(repo, "/") {
+		return repo
+	}
+	return org + "/" + repo
+}
+
+func verbosef(cfg DiscoverConfig, format string, args ...any) {
+	if cfg.Verbose {
+		fmt.Fprintf(os.Stderr, format, args...)
+	}
 }
