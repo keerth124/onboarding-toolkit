@@ -5,4 +5,4 @@ workload_auth: jwt
 provisioning_mode: bootstrap
 authenticator_name: github-keerth124
 audience: conjur-cloud
-workload_count: 1
+workload_count: 8

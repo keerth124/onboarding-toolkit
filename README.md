@@ -37,6 +37,13 @@ JWT authenticator.
   - Conjur username.
   - Conjur API key in `CONJUR_API_KEY`.
 
+For complete discovery of repositories owned by your own GitHub user account,
+authenticate `gh` with:
+
+```sh
+gh auth refresh -s repo,read:org
+```
+
 Current tenant auth uses Conjur API key auth:
 
 ```text

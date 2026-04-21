@@ -47,13 +47,15 @@ func TestGetOrgInfoFallsBackToUserOwner(t *testing.T) {
 			return jsonResponse(http.StatusNotFound, `{}`), nil
 		case "/users/keerth124":
 			return jsonResponse(http.StatusOK, `{"id":123,"login":"keerth124","name":"Keerth","node_id":"U_123","public_repos":7,"type":"User"}`), nil
+		case "/user":
+			return jsonResponse(http.StatusOK, `{"login":"keerth124"}`), nil
 		default:
 			t.Fatalf("unexpected path %s", req.URL.Path)
 			return nil, nil
 		}
 	})}
 
-	got, err := getOrgInfo(context.Background(), client, DiscoverConfig{Org: "keerth124"})
+	got, err := getOrgInfo(context.Background(), client, DiscoverConfig{Org: "keerth124", Token: "token"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -64,12 +66,44 @@ func TestGetOrgInfoFallsBackToUserOwner(t *testing.T) {
 	if got.AccountType != "User" {
 		t.Fatalf("AccountType = %q, want User", got.AccountType)
 	}
+	if !got.Authenticated {
+		t.Fatal("Authenticated = false, want true")
+	}
 	if got.PublicRepos != 7 {
 		t.Fatalf("PublicRepos = %d, want 7", got.PublicRepos)
 	}
 }
 
-func TestListReposUsesUserEndpointForUserOwner(t *testing.T) {
+func TestListReposUsesAuthenticatedUserEndpointForAuthenticatedUserOwner(t *testing.T) {
+	var paths []string
+	client := &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		paths = append(paths, req.URL.Path)
+		if req.URL.Path != "/user/repos" {
+			t.Fatalf("unexpected path %s", req.URL.Path)
+		}
+		if got := req.URL.Query().Get("visibility"); got != "all" {
+			t.Fatalf("visibility = %q, want all", got)
+		}
+		if got := req.URL.Query().Get("affiliation"); got != "owner" {
+			t.Fatalf("affiliation = %q, want owner", got)
+		}
+		return jsonResponse(http.StatusOK, `[{"name":"onboarding-toolkit","full_name":"keerth124/onboarding-toolkit","default_branch":"main","visibility":"public","archived":false}]`), nil
+	})}
+
+	repos, err := listRepos(context.Background(), client, DiscoverConfig{Org: "keerth124"}, OrgInfo{AccountType: "User", Authenticated: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(paths) != 1 {
+		t.Fatalf("paths = %#v, want one request", paths)
+	}
+	if len(repos) != 1 || repos[0].FullName != "keerth124/onboarding-toolkit" {
+		t.Fatalf("repos = %#v, want keerth124/onboarding-toolkit", repos)
+	}
+}
+
+func TestListReposUsesPublicUserEndpointForOtherUserOwner(t *testing.T) {
 	var paths []string
 	client := &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		paths = append(paths, req.URL.Path)

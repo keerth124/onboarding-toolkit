@@ -29,17 +29,18 @@ type DiscoverConfig struct {
 
 // OrgInfo holds organization metadata relevant to discovery and review.
 type OrgInfo struct {
-	ID           int64    `json:"id"`
-	Login        string   `json:"login"`
-	Name         string   `json:"name,omitempty"`
-	AccountType  string   `json:"account_type,omitempty"`
-	NodeID       string   `json:"node_id,omitempty"`
-	PublicRepos  int      `json:"public_repos,omitempty"`
-	PlanName     string   `json:"plan_name,omitempty"`
-	PlanSpace    int      `json:"plan_space,omitempty"`
-	PrivateRepos int      `json:"private_repos,omitempty"`
-	Enterprise   string   `json:"enterprise,omitempty"`
-	Warnings     []string `json:"warnings,omitempty"`
+	ID            int64    `json:"id"`
+	Login         string   `json:"login"`
+	Name          string   `json:"name,omitempty"`
+	AccountType   string   `json:"account_type,omitempty"`
+	Authenticated bool     `json:"authenticated,omitempty"`
+	NodeID        string   `json:"node_id,omitempty"`
+	PublicRepos   int      `json:"public_repos,omitempty"`
+	PlanName      string   `json:"plan_name,omitempty"`
+	PlanSpace     int      `json:"plan_space,omitempty"`
+	PrivateRepos  int      `json:"private_repos,omitempty"`
+	Enterprise    string   `json:"enterprise,omitempty"`
+	Warnings      []string `json:"warnings,omitempty"`
 }
 
 // RepoInfo holds per-repository metadata relevant to Conjur onboarding.
@@ -238,15 +239,43 @@ func getUserInfo(ctx context.Context, client *http.Client, cfg DiscoverConfig) (
 	if accountType == "" {
 		accountType = "User"
 	}
+	authenticatedLogin, err := getAuthenticatedUserLogin(ctx, client, cfg)
+	if err != nil {
+		return OrgInfo{}, err
+	}
 
 	return OrgInfo{
-		ID:          body.ID,
-		Login:       body.Login,
-		Name:        body.Name,
-		AccountType: accountType,
-		NodeID:      body.NodeID,
-		PublicRepos: body.PublicRepos,
+		ID:            body.ID,
+		Login:         body.Login,
+		Name:          body.Name,
+		AccountType:   accountType,
+		Authenticated: strings.EqualFold(body.Login, authenticatedLogin),
+		NodeID:        body.NodeID,
+		PublicRepos:   body.PublicRepos,
 	}, nil
+}
+
+func getAuthenticatedUserLogin(ctx context.Context, client *http.Client, cfg DiscoverConfig) (string, error) {
+	if cfg.Token == "" {
+		return "", nil
+	}
+
+	url := githubAPIBase + "/user"
+	var body struct {
+		Login string `json:"login"`
+	}
+
+	resp, err := getJSON(ctx, client, cfg, url, &body)
+	if err != nil {
+		return "", err
+	}
+	if resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden {
+		return "", authError(resp, "repo")
+	}
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("GitHub API returned %d for authenticated user metadata", resp.StatusCode)
+	}
+	return body.Login, nil
 }
 
 func getOIDCSubCustomization(ctx context.Context, client *http.Client, cfg DiscoverConfig) (OIDCSubCustomization, error) {
@@ -312,7 +341,9 @@ func listRepos(ctx context.Context, client *http.Client, cfg DiscoverConfig, org
 	page := 1
 	for {
 		url := fmt.Sprintf("%s/orgs/%s/repos?type=all&per_page=%d&page=%d", githubAPIBase, cfg.Org, pageSize, page)
-		if orgInfo.AccountType != "Organization" {
+		if orgInfo.AccountType != "Organization" && orgInfo.Authenticated {
+			url = fmt.Sprintf("%s/user/repos?visibility=all&affiliation=owner&per_page=%d&page=%d", githubAPIBase, pageSize, page)
+		} else if orgInfo.AccountType != "Organization" {
 			url = fmt.Sprintf("%s/users/%s/repos?type=owner&per_page=%d&page=%d", githubAPIBase, cfg.Org, pageSize, page)
 		}
 

@@ -6,8 +6,8 @@ Generated values:
 
 - Tenant URL: `https://my-tenant.secretsmgr.cyberark.cloud`
 - Authenticator service ID: `github-keerth124`
-- Example workload host ID: `data/github-apps/keerth124/keerth124/onboarding-toolkit`
-- Example repository: `onboarding-toolkit`
+- Example workload host ID: `data/github-apps/keerth124/keerth124/alpaca-backtrader-api`
+- Example repository: `alpaca-backtrader-api`
 
 Before using the workflow, replace `data/vault/example/safe/test-secret` with a real variable path and grant the authenticator apps group access to the required safe.
 

@@ -82,6 +82,15 @@ repositories, use a token with repository read access. For user-owned public
 repositories such as `keerth124/onboarding-toolkit`, set `GITHUB_ORG` to the
 username, for example `keerth124`.
 
+When `GITHUB_ORG` is your own GitHub username, discovery uses GitHub's
+authenticated-user repository endpoint so it can include repositories you own
+that are not returned by the public user listing. If the count looks too low,
+refresh `gh` with the documented scopes:
+
+```sh
+gh auth refresh -s repo,read:org
+```
+
 ## 3. Create A Small Repo List
 
 For early tests, use `--repos-from-file` to avoid onboarding every repository
@@ -482,6 +491,10 @@ COT intentionally does not create safe grants.
   with `gh auth login`.
 - `GitHub token scopes are missing`: run `gh auth refresh -s repo,read:org` or
   use a token with equivalent access.
+- User-owned discovery returns fewer repositories than expected: confirm the
+  requested owner matches the authenticated `gh` user and run
+  `gh auth refresh -s repo,read:org`; public user listings do not include every
+  repository the authenticated user can access.
 - `CONJUR_API_KEY environment variable is required`: set it in the shell running
   `validate`, `apply`, or `rollback`.
 - HTTP 401 from Conjur auth: check `--tenant`, `--username`, and

@@ -5,4 +5,34 @@
   id: data/github-apps/keerth124
   body:
     - !host
-      id: keerth124/onboarding-toolkit
+      id: keerth124/alpaca-backtrader-api
+      annotations:
+        authn-jwt/github-keerth124/repository: keerth124/alpaca-backtrader-api
+    - !host
+      id: keerth124/conjur-github-action
+      annotations:
+        authn-jwt/github-keerth124/repository: keerth124/conjur-github-action
+    - !host
+      id: keerth124/deepwiki-open
+      annotations:
+        authn-jwt/github-keerth124/repository: keerth124/deepwiki-open
+    - !host
+      id: keerth124/FinAnGPT
+      annotations:
+        authn-jwt/github-keerth124/repository: keerth124/FinAnGPT
+    - !host
+      id: keerth124/flask-app
+      annotations:
+        authn-jwt/github-keerth124/repository: keerth124/flask-app
+    - !host
+      id: keerth124/go-webapp-sample
+      annotations:
+        authn-jwt/github-keerth124/repository: keerth124/go-webapp-sample
+    - !host
+      id: keerth124/gpt4free
+      annotations:
+        authn-jwt/github-keerth124/repository: keerth124/gpt4free
+    - !host
+      id: keerth124/JamesGPT
+      annotations:
+        authn-jwt/github-keerth124/repository: keerth124/JamesGPT
