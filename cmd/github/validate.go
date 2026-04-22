@@ -15,8 +15,8 @@ func newValidateCmd(sf *sharedFlags) *cobra.Command {
 		Use:   "validate",
 		Short: "Run non-mutating checks against a generated GitHub API plan",
 		Long: `Validate reads api/plan.json from the working directory, verifies that all
-referenced request bodies are readable, and checks that the target Conjur tenant
-is reachable with the provided tool-auth credentials.
+referenced request bodies are readable, and checks that the target Conjur
+endpoint is reachable with the provided tool-auth credentials.
 
 Authentication uses the CONJUR_API_KEY environment variable.
 
@@ -75,8 +75,8 @@ Examples:
 		},
 	}
 
-	cmd.Flags().StringVar(&conn.tenant, "tenant", "", "Conjur Cloud tenant subdomain")
-	cmd.Flags().StringVar(&conn.conjurURL, "conjur-url", "", "Full Conjur API/appliance URL for Enterprise or self-hosted")
+	cmd.Flags().StringVar(&conn.tenant, "tenant", "", "Secrets Manager SaaS tenant subdomain")
+	cmd.Flags().StringVar(&conn.conjurURL, "conjur-url", "", "Full Conjur appliance URL for Enterprise or self-hosted")
 	cmd.Flags().StringVar(&conn.account, "account", "conjur", "Conjur account name")
 	cmd.Flags().StringVar(&conn.username, "username", "", "Conjur username for authentication (required)")
 

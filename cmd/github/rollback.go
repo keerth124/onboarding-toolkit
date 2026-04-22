@@ -81,8 +81,8 @@ Examples:
 		},
 	}
 
-	cmd.Flags().StringVar(&conn.tenant, "tenant", "", "Conjur Cloud tenant subdomain")
-	cmd.Flags().StringVar(&conn.conjurURL, "conjur-url", "", "Full Conjur API/appliance URL for Enterprise or self-hosted")
+	cmd.Flags().StringVar(&conn.tenant, "tenant", "", "Secrets Manager SaaS tenant subdomain")
+	cmd.Flags().StringVar(&conn.conjurURL, "conjur-url", "", "Full Conjur appliance URL for Enterprise or self-hosted")
 	cmd.Flags().StringVar(&conn.account, "account", "conjur", "Conjur account name")
 	cmd.Flags().StringVar(&conn.username, "username", "", "Conjur username for authentication (required)")
 	cmd.Flags().BoolVar(&confirm, "confirm", false, "Confirm destructive rollback operations")

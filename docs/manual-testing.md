@@ -11,7 +11,7 @@ The safest first pass is:
 4. Run `validate --dry-run`.
 5. Review the generated files.
 6. Run live `validate`.
-7. Apply only in a test tenant or with test repositories.
+7. Apply only in a test Conjur environment or with test repositories.
 
 ## Test Inputs
 
@@ -21,6 +21,9 @@ Collect these before starting:
 - One test repository owned by that account: `GITHUB_REPO`, for example
   `api-service`
 - Secrets Manager SaaS tenant subdomain: `CONJUR_TENANT`
+- Conjur Enterprise or Secrets Manager Self-Hosted appliance URL:
+  `CONJUR_URL`
+- Optional Conjur account name for self-hosted targets: `CONJUR_ACCOUNT`
 - Conjur username: `CONJUR_USERNAME`
 - Conjur API key: `CONJUR_API_KEY`
 - Optional existing authenticator name for workloads-only testing
@@ -28,6 +31,10 @@ Collect these before starting:
 The tenant value is the subdomain only. Use `my-tenant`, not
 `https://my-tenant.secretsmgr.cyberark.cloud/api`. The tool adds the SaaS
 `/api` base path internally.
+
+For self-hosted targets, use the appliance URL as-is, for example
+`https://conjur.example.com`. The tool does not append `/api` to
+`--conjur-url`.
 
 ## 1. Build And Smoke Test
 
@@ -242,7 +249,7 @@ Expected result:
 
 - All operation body files are readable.
 - `validate-log.json` is written.
-- No tenant credentials are required.
+- No Conjur credentials are required.
 
 ## 8. Local Dry-Run Apply
 
@@ -269,13 +276,13 @@ Windows PowerShell:
 Expected result:
 
 - `apply-log.json` is written with dry-run entries.
-- No tenant credentials are required.
+- No Conjur credentials are required.
 
 If you plan to run a real apply afterward, remove the dry-run `apply-log.json`
 or use a fresh work directory so rollback testing is not confused by dry-run
 state.
 
-## 9. Live Tenant Validation
+## 9. Live Conjur Validation
 
 macOS or Linux:
 
@@ -317,7 +324,7 @@ Expected result in `workloads-only` mode:
 ## 10. Apply Bootstrap Plan
 
 Apply only after reviewing the generated artifacts and confirming this is a
-test tenant or intended test scope.
+test Conjur environment or intended test scope.
 
 macOS or Linux:
 
@@ -414,9 +421,26 @@ Use `--conjur-url` instead of `--tenant` and set `--conjur-target self-hosted`
 when generating artifacts. Use the self-hosted appliance URL as-is; the tool
 does not append `/api` for self-hosted targets.
 
+macOS or Linux:
+
+```sh
+export CONJUR_URL=https://conjur.example.com
+export CONJUR_ACCOUNT=conjur
+
+./bin/conjur-onboard github generate \
+  --conjur-url "$CONJUR_URL" \
+  --conjur-target self-hosted \
+  --work-dir "$WORK_DIR"
+```
+
+Windows PowerShell:
+
 ```powershell
+$env:CONJUR_URL = "https://conjur.example.com"
+$env:CONJUR_ACCOUNT = "conjur"
+
 .\bin\conjur-onboard.exe github generate `
-  --conjur-url https://conjur.example.com `
+  --conjur-url $env:CONJUR_URL `
   --conjur-target self-hosted `
   --work-dir $env:WORK_DIR
 ```
@@ -429,10 +453,22 @@ Expected result:
 
 Apply with:
 
+macOS or Linux:
+
+```sh
+./bin/conjur-onboard github apply \
+  --conjur-url "$CONJUR_URL" \
+  --account "$CONJUR_ACCOUNT" \
+  --username "$CONJUR_USERNAME" \
+  --work-dir "$WORK_DIR"
+```
+
+Windows PowerShell:
+
 ```powershell
 .\bin\conjur-onboard.exe github apply `
-  --conjur-url https://conjur.example.com `
-  --account conjur `
+  --conjur-url $env:CONJUR_URL `
+  --account $env:CONJUR_ACCOUNT `
   --username $env:CONJUR_USERNAME `
   --work-dir $env:WORK_DIR
 ```
@@ -530,8 +566,8 @@ COT intentionally does not create safe grants.
   repository the authenticated user can access.
 - `CONJUR_API_KEY environment variable is required`: set it in the shell running
   `validate`, `apply`, or `rollback`.
-- HTTP 401 from Conjur auth: check `--tenant`, `--username`, and
-  `CONJUR_API_KEY`.
+- HTTP 401 from Conjur auth: check `--tenant` or `--conjur-url`, `--account`,
+  `--username`, and `CONJUR_API_KEY`.
 - HTTP 403 on Conjur API calls: the tool identity likely lacks authenticator or
   policy management privileges.
 - `workloads-only mode requires existing authenticator`: run bootstrap first or
@@ -545,6 +581,6 @@ COT intentionally does not create safe grants.
 - Interactive claim selection is not implemented.
 - Environment claim enforcement is not emitted by the MVP generator.
 - Workload creation currently uses policy loading.
-- Tenant auth currently uses Conjur API key auth, not CyberArk Identity session
+- Conjur auth currently uses API key auth, not CyberArk Identity session
   auth.
 - Some live SaaS endpoint shapes still need confirmation against a real tenant.

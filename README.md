@@ -1,7 +1,7 @@
 # Conjur Onboarding Toolkit
 
 Conjur Onboarding Toolkit, `conjur-onboard`, generates reviewable CyberArk
-Secrets Manager SaaS onboarding artifacts for CI/CD workloads.
+Conjur onboarding artifacts for CI/CD workloads.
 
 The current implemented slice is GitHub Actions using GitHub OIDC and a Conjur
 JWT authenticator.
@@ -14,12 +14,16 @@ JWT authenticator.
 - Generates Conjur workload policy YAML for discovered repositories.
 - Adds JWT claim annotations to generated workloads, including the GitHub
   `repository` claim used by the authenticator.
-- Generates group membership API bodies for the authenticator `apps` group.
+- Generates group membership API bodies for the authenticator `apps` group on
+  SaaS.
+- Generates policy-load grant fallback artifacts for Conjur Enterprise and
+  Secrets Manager Self-Hosted.
 - Supports two GitHub provisioning modes:
   - `bootstrap`: create the GitHub authenticator, workloads, and memberships.
   - `workloads-only`: create only workloads and memberships for an existing
     org-level authenticator.
-- Validates generated plans against a Secrets Manager SaaS tenant.
+- Validates generated plans against a Secrets Manager SaaS tenant or
+  self-hosted Conjur endpoint.
 - Applies generated API calls and writes `apply-log.json`.
 - Rolls back successful apply operations using `apply-log.json`.
 
@@ -31,9 +35,13 @@ JWT authenticator.
   - GitHub CLI, `gh`, authenticated with `repo` and `read:org` scopes.
   - `GITHUB_TOKEN`.
   - `--token <token>`.
-- For tenant validation/apply/rollback:
+- For SaaS validation/apply/rollback:
   - Secrets Manager SaaS tenant subdomain, for example `my-tenant` from
     `https://my-tenant.secretsmgr.cyberark.cloud/api`.
+- For Conjur Enterprise or Secrets Manager Self-Hosted validation/apply/rollback:
+  - Full appliance URL, for example `https://conjur.example.com`.
+  - Optional Conjur account name if it is not `conjur`.
+- For all Conjur targets:
   - Conjur username.
   - Conjur API key in `CONJUR_API_KEY`.
 
@@ -44,10 +52,16 @@ authenticate `gh` with:
 gh auth refresh -s repo,read:org
 ```
 
-Current tenant auth uses Conjur API key auth:
+Current Conjur auth uses API key auth. SaaS tenant mode uses this URL shape:
 
 ```text
 POST https://<tenant>.secretsmgr.cyberark.cloud/api/authn/conjur/<username>/authenticate
+```
+
+Self-hosted mode uses the provided appliance URL without appending `/api`:
+
+```text
+POST https://<conjur-host>/authn/<account>/<username>/authenticate
 ```
 
 CyberArk Identity session auth is still a PRD target, not implemented in this
@@ -83,7 +97,7 @@ You can also run from source without building:
 go run . github --help
 ```
 
-## GitHub Quickstart
+## GitHub SaaS Quickstart
 
 Use a stable work directory so each step reads the artifacts from the previous
 step.
@@ -123,7 +137,7 @@ Review these generated files before applying:
 - `integration/example-deploy.yml`
 - `NEXT_STEPS.md`
 
-## Apply To A Tenant
+## Apply To Conjur
 
 Run a live validation first:
 
@@ -253,7 +267,7 @@ CONJUR_API_KEY=<api-key> ./bin/conjur-onboard github apply \
 
 See [docs/manual-testing.md](docs/manual-testing.md) for a fuller macOS and
 Windows walkthrough, including a low-risk dry-run path, targeted repo discovery,
-live tenant validation, apply, workloads-only, and rollback checks.
+live Conjur validation, apply, workloads-only, self-hosted, and rollback checks.
 
 ## Current Limitations
 

@@ -1,4 +1,4 @@
-// Package conjur provides a client for the Secrets Manager SaaS (Conjur Cloud) v2 REST API.
+// Package conjur provides a client for Secrets Manager SaaS and self-hosted Conjur APIs.
 package conjur
 
 import (
@@ -18,7 +18,7 @@ const (
 	maxRetries = 3
 )
 
-// Client is an authenticated HTTP client for Conjur Cloud.
+// Client is an authenticated HTTP client for Conjur APIs.
 type Client struct {
 	baseURL        string
 	apiBaseURL     string
@@ -37,7 +37,7 @@ type ClientConfig struct {
 	Verbose   bool
 }
 
-// NewClient authenticates to the Conjur Cloud tenant and returns a ready client.
+// NewClient authenticates to a Secrets Manager SaaS tenant and returns a ready client.
 // The API key is read from the apiKey parameter (sourced from CONJUR_API_KEY env var by callers).
 func NewClient(tenant, username, apiKey string, verbose bool) (*Client, error) {
 	return NewClientFromConfig(ClientConfig{

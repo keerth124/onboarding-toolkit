@@ -14,9 +14,9 @@ func newApplyCmd(sf *sharedFlags) *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "apply",
-		Short: "Execute the generated API plan against a Conjur tenant",
+		Short: "Execute the generated API plan against a Conjur endpoint",
 		Long: `Apply reads plan.json from the working directory and executes the API calls
-against the target Conjur tenant in order:
+against the target Conjur endpoint in order:
   1. Create authenticator
   2. Load workload policy
   3. Add workloads to the authenticator's apps group, either by REST endpoint
@@ -84,8 +84,8 @@ Examples:
 		},
 	}
 
-	cmd.Flags().StringVar(&conn.tenant, "tenant", "", "Conjur Cloud tenant subdomain")
-	cmd.Flags().StringVar(&conn.conjurURL, "conjur-url", "", "Full Conjur API/appliance URL for Enterprise or self-hosted")
+	cmd.Flags().StringVar(&conn.tenant, "tenant", "", "Secrets Manager SaaS tenant subdomain")
+	cmd.Flags().StringVar(&conn.conjurURL, "conjur-url", "", "Full Conjur appliance URL for Enterprise or self-hosted")
 	cmd.Flags().StringVar(&conn.account, "account", "conjur", "Conjur account name")
 	cmd.Flags().StringVar(&conn.username, "username", "", "Conjur username for authentication (required)")
 	cmd.Flags().BoolVar(&skipValidate, "skip-validate", false, "Skip pre-flight validation (not recommended)")

@@ -43,13 +43,17 @@ Using recommended primary identity claim: 'repository'. Environment claims are
 reported for review but not enforced by the MVP generator. To customize, re-run with:
   conjur-onboard github discover --org <owner>
   conjur-onboard github generate --tenant <tenant> [custom flags]
+  conjur-onboard github generate --conjur-url <appliance-url> --conjur-target self-hosted [custom flags]
 
 Examples:
   conjur-onboard github express --org acme-corp --tenant myco
+  conjur-onboard github express --org acme-corp --conjur-url https://conjur.example.com
   conjur-onboard github express --org keerth124 --tenant myco --repos-from-file repos.txt
+  conjur-onboard github express --org keerth124 --conjur-url https://conjur.example.com --repos-from-file repos.txt
   conjur-onboard github express --org acme-corp --tenant myco --provisioning-mode workloads-only
   conjur-onboard github express --org acme-corp --tenant myco --repos-from-file repos.txt
-  CONJUR_API_KEY=xxx conjur-onboard github express --org acme-corp --tenant myco --username admin --apply`,
+  CONJUR_API_KEY=xxx conjur-onboard github express --org acme-corp --tenant myco --username admin --apply
+  CONJUR_API_KEY=xxx conjur-onboard github express --org acme-corp --conjur-url https://conjur.example.com --username admin --apply`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if org == "" {
 				return fmt.Errorf("--org is required")
@@ -141,7 +145,7 @@ Examples:
 				return fmt.Errorf("CONJUR_API_KEY environment variable is required when --apply is set")
 			}
 
-			fmt.Println("==> Step 3/3: Applying to Conjur Cloud tenant...")
+			fmt.Println("==> Step 3/3: Applying to Conjur endpoint...")
 			client, err := newConjurClient(conjurConnectionFlags{
 				tenant:    tenant,
 				conjurURL: conjurURL,
@@ -191,8 +195,8 @@ Examples:
 
 	cmd.Flags().StringVar(&org, "org", "", "GitHub organization or user owner name (required)")
 	cmd.Flags().StringVar(&token, "token", "", "GitHub personal access token (or set GITHUB_TOKEN)")
-	cmd.Flags().StringVar(&tenant, "tenant", "", "Conjur Cloud tenant subdomain")
-	cmd.Flags().StringVar(&conjurURL, "conjur-url", "", "Full Conjur API/appliance URL for Enterprise or self-hosted")
+	cmd.Flags().StringVar(&tenant, "tenant", "", "Secrets Manager SaaS tenant subdomain")
+	cmd.Flags().StringVar(&conjurURL, "conjur-url", "", "Full Conjur appliance URL for Enterprise or self-hosted")
 	cmd.Flags().StringVar(&conjurTarget, "conjur-target", "", "Conjur target: saas or self-hosted")
 	cmd.Flags().StringVar(&username, "username", "", "Conjur username (required with --apply)")
 	cmd.Flags().StringVar(&account, "account", "conjur", "Conjur account name")
@@ -201,7 +205,7 @@ Examples:
 	cmd.Flags().StringVar(&provisioningMode, "provisioning-mode", "bootstrap", "Provisioning mode: bootstrap or workloads-only")
 	cmd.Flags().StringVar(&authenticatorName, "authenticator-name", "", "Existing authenticator name override for workloads-only mode")
 	cmd.Flags().BoolVar(&createDisabled, "create-disabled", false, "Create authenticator in disabled state")
-	cmd.Flags().BoolVar(&autoApply, "apply", false, "Apply to tenant automatically without prompting")
+	cmd.Flags().BoolVar(&autoApply, "apply", false, "Apply to Conjur automatically without prompting")
 
 	return cmd
 }

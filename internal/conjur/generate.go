@@ -307,7 +307,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Fetch secrets from Conjur Cloud
+      - name: Fetch secrets from Conjur
         uses: cyberark/conjur-action@v2
         with:
           url: %s
@@ -324,7 +324,7 @@ jobs:
 
 	readme := fmt.Sprintf(`# GitHub Actions Integration
 
-This directory contains a starter workflow for a GitHub Actions workload using the generated Conjur Cloud JWT authenticator.
+This directory contains a starter workflow for a GitHub Actions workload using the generated Conjur JWT authenticator.
 
 Generated values:
 
@@ -402,7 +402,7 @@ conjur-onboard github generate %s --work-dir %s
 
 Expected outcome: `+"`api/plan.json`"+`, `+"`api/01-create-authenticator.json`"+`, `+"`api/02-workloads.yml`"+`, grant or membership artifacts, and `+"`integration/example-deploy.yml`"+` are present and reviewable.
 
-## 2. Validate Against the Tenant
+## 2. Validate Against Conjur
 
 Command:
 
@@ -410,7 +410,7 @@ Command:
 CONJUR_API_KEY=<api-key> conjur-onboard github validate %s --username <username> --work-dir %s
 `+"```"+`
 
-Expected outcome: validation can read all generated bodies and reach the tenant API.
+Expected outcome: validation can read all generated bodies and reach the Conjur endpoint.
 
 ## 3. Apply the Plan
 
