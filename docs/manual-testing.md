@@ -231,6 +231,8 @@ Review `api/plan.json` and confirm:
 - `authenticator_subtype` is `github_actions`.
 - `authenticator_name` is `github-<org>`.
 - The first operation is `create-authenticator`.
+- The `load-workload-policy` operation uses `/policies/conjur/policy/data` for
+  SaaS plans, not `root`.
 - Generated rollback-capable operations include `metadata.rollback_kind`.
 - Workload IDs are under `data/github-apps/<org>/...` and use the repository
   name only, for example `data/github-apps/acme/api`.

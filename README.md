@@ -194,6 +194,10 @@ authenticator metadata, including `authenticator_type`,
 `authenticator_subtype`; self-hosted and Enterprise plans omit it because the
 self-hosted create-authenticator API does not use a subtype field.
 
+For SaaS, `api/02-workloads.yml` is appended to the `data` policy branch because
+SaaS tenants do not expose a loadable `root` policy branch. Self-hosted plans
+load workload policy under `root`.
+
 ## Apply To Conjur
 
 Run a live validation first:

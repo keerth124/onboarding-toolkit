@@ -338,7 +338,7 @@ func policyRootPath(target string) string {
 	if target == "self-hosted" {
 		return "/policies/{account}/policy/root"
 	}
-	return "/policies/conjur/policy/root"
+	return "/policies/conjur/policy/data"
 }
 
 func removeAuthenticatorArtifact(workDir string) error {

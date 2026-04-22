@@ -34,6 +34,32 @@ func TestGenerateUsesClaimAnalysisSelection(t *testing.T) {
 	if !strings.Contains(string(workloadPolicy), "authn-jwt/github-acme/repository: acme/api") {
 		t.Fatalf("workload policy missing repository JWT annotation:\n%s", string(workloadPolicy))
 	}
+	if !strings.Contains(string(workloadPolicy), "# Load via: POST /policies/conjur/policy/data") {
+		t.Fatalf("workload policy load path is not SaaS data branch:\n%s", string(workloadPolicy))
+	}
+	if !strings.Contains(string(workloadPolicy), "  id: github-apps/acme\n") {
+		t.Fatalf("workload policy id is not relative to SaaS data branch:\n%s", string(workloadPolicy))
+	}
+
+	var plan struct {
+		Operations []struct {
+			ID   string `json:"id"`
+			Path string `json:"path"`
+		} `json:"operations"`
+	}
+	readJSONForTest(t, filepath.Join(workDir, "api", "plan.json"), &plan)
+	foundWorkloadLoad := false
+	for _, op := range plan.Operations {
+		if op.ID == "load-workload-policy" {
+			foundWorkloadLoad = true
+			if op.Path != "/policies/conjur/policy/data" {
+				t.Fatalf("load-workload-policy path = %q, want /policies/conjur/policy/data", op.Path)
+			}
+		}
+	}
+	if !foundWorkloadLoad {
+		t.Fatal("load-workload-policy operation not found")
+	}
 }
 
 func TestGenerateRejectsMissingJWTClaimSelection(t *testing.T) {
@@ -114,7 +140,7 @@ func TestGenerateSelfHostedUsesPolicyGrantInsteadOfGroupMembershipAPI(t *testing
 	if !strings.Contains(grant, "role: !group conjur/authn-jwt/github-acme/apps") {
 		t.Fatalf("grant policy missing apps group role:\n%s", grant)
 	}
-	if !strings.Contains(grant, "- !host data/github-apps/acme/acme/api") {
+	if !strings.Contains(grant, "- !host data/github-apps/acme/api") {
 		t.Fatalf("grant policy missing workload host:\n%s", grant)
 	}
 
@@ -224,8 +250,8 @@ func testGenerateConfig(workDir string) GenerateConfig {
 		},
 		Workloads: []platform.Workload{
 			{
-				FullPath: "data/github-apps/acme/acme/api",
-				HostID:   "acme/api",
+				FullPath: "data/github-apps/acme/api",
+				HostID:   "api",
 				Annotations: map[string]string{
 					"authn-jwt/github-acme/repository": "acme/api",
 				},
