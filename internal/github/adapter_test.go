@@ -65,11 +65,11 @@ func TestAdapterWorkloadsMapRepositories(t *testing.T) {
 	if len(workloads) != 1 {
 		t.Fatalf("len(workloads) = %d, want 1", len(workloads))
 	}
-	if workloads[0].FullPath != "data/github-apps/acme/acme/api" {
-		t.Fatalf("FullPath = %q, want data/github-apps/acme/acme/api", workloads[0].FullPath)
+	if workloads[0].FullPath != "data/github-apps/acme/api" {
+		t.Fatalf("FullPath = %q, want data/github-apps/acme/api", workloads[0].FullPath)
 	}
-	if workloads[0].HostID != "acme/api" {
-		t.Fatalf("HostID = %q, want acme/api", workloads[0].HostID)
+	if workloads[0].HostID != "api" {
+		t.Fatalf("HostID = %q, want api", workloads[0].HostID)
 	}
 	if workloads[0].Annotations["authn-jwt/github-acme/repository"] != "acme/api" {
 		t.Fatalf("repository annotation = %q, want acme/api", workloads[0].Annotations["authn-jwt/github-acme/repository"])

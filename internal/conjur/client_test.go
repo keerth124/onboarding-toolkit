@@ -84,13 +84,14 @@ func TestClientAPIURLMapsAuthenticatorPathsForSelfHostedBase(t *testing.T) {
 	}
 
 	tests := map[string]string{
-		"/api/authenticators":            "https://conjur.example.com/authenticators/conjur",
-		"api/authenticators":             "https://conjur.example.com/authenticators/conjur",
-		"/api/authenticators/name":       "https://conjur.example.com/authenticators/conjur/name",
-		"/authenticators/{account}":      "https://conjur.example.com/authenticators/conjur",
-		"/authenticators/{account}/name": "https://conjur.example.com/authenticators/conjur/name",
-		"/policies/conjur/policy/root":   "https://conjur.example.com/policies/conjur/policy/root",
-		"/api/groups/group/members":      "https://conjur.example.com/api/groups/group/members",
+		"/api/authenticators":             "https://conjur.example.com/authenticators/conjur",
+		"api/authenticators":              "https://conjur.example.com/authenticators/conjur",
+		"/api/authenticators/name":        "https://conjur.example.com/authenticators/conjur/name",
+		"/authenticators/{account}":       "https://conjur.example.com/authenticators/conjur",
+		"/authenticators/{account}/name":  "https://conjur.example.com/authenticators/conjur/name",
+		"/policies/{account}/policy/root": "https://conjur.example.com/policies/conjur/policy/root",
+		"/policies/conjur/policy/root":    "https://conjur.example.com/policies/conjur/policy/root",
+		"/api/groups/group/members":       "https://conjur.example.com/api/groups/group/members",
 	}
 
 	for input, want := range tests {
@@ -126,6 +127,7 @@ func TestNormalizeAPIPathMapsAuthenticatorPathsForSelfHosted(t *testing.T) {
 		"/api/authenticators/github":    "/authenticators/conjur/github",
 		"/authenticators/{account}":     "/authenticators/conjur",
 		"/authenticators/{account}/git": "/authenticators/conjur/git",
+		"/policies/{account}/policy":    "/policies/conjur/policy",
 		"/policies/conjur/policy":       "/policies/conjur/policy",
 		"policies/conjur/policy":        "/policies/conjur/policy",
 	}

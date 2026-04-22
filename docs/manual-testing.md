@@ -228,7 +228,8 @@ Review `api/plan.json` and confirm:
 - `authenticator_name` is `github-<org>`.
 - The first operation is `create-authenticator`.
 - Generated rollback-capable operations include `metadata.rollback_kind`.
-- Workload IDs are under `data/github-apps/<org>/...`.
+- Workload IDs are under `data/github-apps/<org>/...` and use the repository
+  name only, for example `data/github-apps/acme/api`.
 - Each generated host has a JWT repository annotation such as
   `authn-jwt/github-<org>/repository: <owner>/<repo>`.
 
@@ -457,10 +458,13 @@ $env:CONJUR_ACCOUNT = "conjur"
 
 Expected result:
 
+- `api/00-authenticator-branch.yml` exists.
 - `api/04-grant-authenticator-access.yml` exists.
 - `api/01-create-authenticator.json` does not include `subtype`.
 - `api/plan.json` uses `/authenticators/{account}` for
   `create-authenticator`.
+- `api/plan.json` uses `/policies/{account}/policy/root` for self-hosted
+  policy loads.
 - `api/plan.json` includes `load-authenticator-grants`.
 - `api/plan.json` does not include `add-group-member-*` operations.
 - `load-authenticator-grants` includes metadata noting manual policy review

@@ -140,9 +140,10 @@ func (a Adapter) Workloads(input platform.GenerationInput, authenticator platfor
 			annotations[JWTAnnotationKey(authenticator.Name, DefaultTokenAppProperty)] = fullName
 		}
 
+		hostID := RepositoryHostID(fullName)
 		workloads = append(workloads, platform.Workload{
-			FullPath:    WorkloadID(authenticator.IdentityPath, fullName, ""),
-			HostID:      fullName,
+			FullPath:    WorkloadID(authenticator.IdentityPath, hostID, ""),
+			HostID:      hostID,
 			DisplayName: fullName,
 			SourceID:    resource.ID,
 			Annotations: annotations,
@@ -158,7 +159,7 @@ func (a Adapter) IntegrationArtifacts(input platform.IntegrationInput) ([]platfo
 	org := input.GenerationInput.Discovery.Scope.Name
 	conjurURL := EffectiveConjurURL(input.GenerationInput.Tenant, input.GenerationInput.ConjurURL)
 
-	hostID := "data/github-apps/" + SafeName(org) + "/OWNER/REPO"
+	hostID := "data/github-apps/" + SafeName(org) + "/REPO"
 	repoName := "owner/repo"
 	if len(input.Workloads) > 0 {
 		hostID = input.Workloads[0].FullPath
@@ -442,6 +443,14 @@ func (Adapter) AuthenticatorName(org string, override string) string {
 
 func (Adapter) IdentityPath(org string) string {
 	return "data/github-apps/" + SafeName(org)
+}
+
+func RepositoryHostID(repoFullName string) string {
+	_, name, ok := strings.Cut(repoFullName, "/")
+	if ok && name != "" {
+		return name
+	}
+	return repoFullName
 }
 
 func WorkloadID(identityPath string, repoFullName string, env string) string {

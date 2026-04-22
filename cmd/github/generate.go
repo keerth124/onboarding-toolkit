@@ -23,6 +23,7 @@ func newGenerateCmd(flags shared.GlobalFlags) *cobra.Command {
 		Short: "Generate Conjur API call artifacts from discovery output",
 		Long: `Generate reads discovery.json from the working directory and produces:
 
+  api/00-authenticator-branch.yml    Self-hosted authn-jwt parent branch policy
   api/01-create-authenticator.json   Body for authenticator creation (bootstrap mode only)
   api/02-workloads.yml               Policy YAML for workload creation
   api/03-add-group-members.jsonl     Bodies for group membership additions

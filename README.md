@@ -136,6 +136,7 @@ Review these generated files before applying:
 
 - `discovery.json`
 - `claims-analysis.json`
+- `api/00-authenticator-branch.yml` for self-hosted bootstrap plans
 - `api/01-create-authenticator.json`
 - `api/02-workloads.yml`
 - `api/03-add-group-members.jsonl`
@@ -264,10 +265,16 @@ append `/api`. The generated create-authenticator operation uses
 added only when you use `--tenant`.
 
 Self-hosted plans still use the manage-authenticators REST endpoint, with an
-authenticator body that omits `subtype`. They do not use the SaaS
-group-membership endpoint. Instead, generation emits
-`api/04-grant-authenticator-access.yml` and adds a policy-load operation that
-grants generated workloads to `conjur/authn-jwt/<authenticator>/apps`.
+authenticator body that omits `subtype`. Bootstrap plans first load
+`api/00-authenticator-branch.yml` to ensure `conjur/authn-jwt` exists, then
+create the authenticator. They do not use the SaaS group-membership endpoint.
+Instead, generation emits `api/04-grant-authenticator-access.yml` and adds a
+policy-load operation that grants generated workloads to
+`conjur/authn-jwt/<authenticator>/apps`.
+
+Generated GitHub workload hosts live below the org identity branch using the
+repository name only, for example `data/github-apps/acme/api`. The JWT
+`repository` annotation still uses GitHub's full `owner/repo` value.
 
 Apply with the same endpoint and, if needed, a non-default Conjur account:
 

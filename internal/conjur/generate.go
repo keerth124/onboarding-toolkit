@@ -3,7 +3,6 @@ package conjur
 import (
 	"fmt"
 	"net/url"
-	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -102,7 +101,16 @@ func Generate(cfg GenerateConfig) (*GenerateResult, error) {
 		if _, err := writeAuthenticatorArtifact(authn, cfg); err != nil {
 			return nil, err
 		}
+		if cfg.ConjurTarget == "self-hosted" {
+			if err := writeAuthenticatorBranchArtifact(cfg); err != nil {
+				return nil, err
+			}
+		} else if err := removeAuthenticatorBranchArtifact(cfg.WorkDir); err != nil {
+			return nil, err
+		}
 	} else if err := removeAuthenticatorArtifact(cfg.WorkDir); err != nil {
+		return nil, err
+	} else if err := removeAuthenticatorBranchArtifact(cfg.WorkDir); err != nil {
 		return nil, err
 	}
 
@@ -214,6 +222,22 @@ func buildPlan(cfg GenerateConfig, authn platform.Authenticator, groupID string)
 
 	ops := []core.Operation{}
 	if cfg.ProvisioningMode == "bootstrap" {
+		if cfg.ConjurTarget == "self-hosted" {
+			ops = append(ops, core.Operation{
+				ID:             "load-authenticator-branch",
+				Description:    "Ensure the authn-jwt policy branch exists before creating the authenticator",
+				Method:         "POST",
+				Path:           policyRootPath(cfg.ConjurTarget),
+				BodyFile:       "api/00-authenticator-branch.yml",
+				ContentType:    "application/x-yaml",
+				ExpectedStatus: []int{200, 201},
+				IdempotentOn:   []int{409},
+				Metadata: map[string]string{
+					"rollback_behavior": "manual-policy-review",
+					"rollback_kind":     "manual-policy-review",
+				},
+			})
+		}
 		ops = append(ops, core.Operation{
 			ID:             "create-authenticator",
 			Description:    fmt.Sprintf("Create %s %s authenticator", platformName, strings.ToUpper(authn.Type)),
@@ -238,7 +262,7 @@ func buildPlan(cfg GenerateConfig, authn platform.Authenticator, groupID string)
 		ID:             "load-workload-policy",
 		Description:    fmt.Sprintf("Create %s workload identities under the authenticator identity path", platformName),
 		Method:         "POST",
-		Path:           "/policies/conjur/policy/root",
+		Path:           policyRootPath(cfg.ConjurTarget),
 		BodyFile:       "api/02-workloads.yml",
 		ContentType:    "application/x-yaml",
 		ExpectedStatus: []int{200, 201},
@@ -253,7 +277,7 @@ func buildPlan(cfg GenerateConfig, authn platform.Authenticator, groupID string)
 			ID:             "load-authenticator-grants",
 			Description:    "Grant generated workloads to authenticator apps group using policy load",
 			Method:         "POST",
-			Path:           "/policies/conjur/policy/root",
+			Path:           policyRootPath(cfg.ConjurTarget),
 			BodyFile:       "api/04-grant-authenticator-access.yml",
 			ContentType:    "application/x-yaml",
 			ExpectedStatus: []int{200, 201},
@@ -310,12 +334,15 @@ func createAuthenticatorPath(target string) string {
 	return "/api/authenticators"
 }
 
-func removeAuthenticatorArtifact(workDir string) error {
-	path := filepath.Join(workDir, "api", "01-create-authenticator.json")
-	if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
-		return fmt.Errorf("removing stale authenticator artifact: %w", err)
+func policyRootPath(target string) string {
+	if target == "self-hosted" {
+		return "/policies/{account}/policy/root"
 	}
-	return nil
+	return "/policies/conjur/policy/root"
+}
+
+func removeAuthenticatorArtifact(workDir string) error {
+	return removeAPIArtifact(workDir, "01-create-authenticator.json", "stale authenticator artifact")
 }
 
 func writeClaimsAnalysis(cfg GenerateConfig) error {

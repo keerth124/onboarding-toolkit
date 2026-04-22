@@ -63,6 +63,9 @@ func TestGenerateWorkloadsOnlyOmitsAuthenticatorOperation(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(workDir, "api", "01-create-authenticator.json")); !os.IsNotExist(err) {
 		t.Fatalf("authenticator artifact exists or stat failed unexpectedly: %v", err)
 	}
+	if _, err := os.Stat(filepath.Join(workDir, "api", "00-authenticator-branch.yml")); !os.IsNotExist(err) {
+		t.Fatalf("authenticator branch artifact exists or stat failed unexpectedly: %v", err)
+	}
 
 	var plan struct {
 		ProvisioningMode string `json:"provisioning_mode"`
@@ -94,6 +97,13 @@ func TestGenerateSelfHostedUsesPolicyGrantInsteadOfGroupMembershipAPI(t *testing
 	}
 	if _, err := os.Stat(filepath.Join(workDir, "api", "03-add-group-members.jsonl")); !os.IsNotExist(err) {
 		t.Fatalf("self-hosted group members artifact exists or stat failed unexpectedly: %v", err)
+	}
+	branchPolicy, err := os.ReadFile(filepath.Join(workDir, "api", "00-authenticator-branch.yml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(branchPolicy), "id: conjur/authn-jwt") {
+		t.Fatalf("authenticator branch policy missing authn-jwt branch:\n%s", string(branchPolicy))
 	}
 
 	grantPolicy, err := os.ReadFile(filepath.Join(workDir, "api", "04-grant-authenticator-access.yml"))
@@ -128,8 +138,12 @@ func TestGenerateSelfHostedUsesPolicyGrantInsteadOfGroupMembershipAPI(t *testing
 		t.Fatalf("AuthenticatorSubtype = %q, want empty for self-hosted", plan.AuthenticatorSubtype)
 	}
 	first := plan.Operations[0]
-	if first.ID != "create-authenticator" || first.Path != "/authenticators/{account}" {
-		t.Fatalf("first operation = %#v, want self-hosted create authenticator endpoint", first)
+	if first.ID != "load-authenticator-branch" || first.Path != "/policies/{account}/policy/root" {
+		t.Fatalf("first operation = %#v, want self-hosted branch policy load", first)
+	}
+	second := plan.Operations[1]
+	if second.ID != "create-authenticator" || second.Path != "/authenticators/{account}" {
+		t.Fatalf("second operation = %#v, want self-hosted create authenticator endpoint", second)
 	}
 	for _, op := range plan.Operations {
 		if strings.HasPrefix(op.ID, "add-group-member-") {
@@ -137,7 +151,7 @@ func TestGenerateSelfHostedUsesPolicyGrantInsteadOfGroupMembershipAPI(t *testing
 		}
 	}
 	last := plan.Operations[len(plan.Operations)-1]
-	if last.ID != "load-authenticator-grants" || last.Path != "/policies/conjur/policy/root" {
+	if last.ID != "load-authenticator-grants" || last.Path != "/policies/{account}/policy/root" {
 		t.Fatalf("last operation = %#v, want load-authenticator-grants policy load", last)
 	}
 

@@ -36,6 +36,7 @@ This slice should make the following platform-neutral:
 
 - Target-aware authenticator create body and operation generation for JWT
   authenticators.
+- Self-hosted parent branch policy generation before authenticator creation.
 - `api/02-workloads.yml` policy generation.
 - `api/03-add-group-members.jsonl` generation.
 - `api/04-grant-authenticator-access.yml` self-hosted fallback.

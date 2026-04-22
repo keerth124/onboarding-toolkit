@@ -275,6 +275,7 @@ func normalizeSelfHostedAPIPath(path string, account string) string {
 		account = "conjur"
 	}
 	accountPath := url.PathEscape(account)
+	path = strings.ReplaceAll(path, "{account}", accountPath)
 
 	switch {
 	case path == "/api/authenticators" || path == "/api/authenticators/":
@@ -283,10 +284,6 @@ func normalizeSelfHostedAPIPath(path string, account string) string {
 		return "/authenticators/" + accountPath + strings.TrimPrefix(path, "/api/authenticators")
 	case path == "/authenticators" || path == "/authenticators/":
 		return "/authenticators/" + accountPath
-	case path == "/authenticators/{account}":
-		return "/authenticators/" + accountPath
-	case strings.HasPrefix(path, "/authenticators/{account}/"):
-		return "/authenticators/" + accountPath + strings.TrimPrefix(path, "/authenticators/{account}")
 	default:
 		return path
 	}
