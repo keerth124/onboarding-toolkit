@@ -324,6 +324,9 @@ Rollback prefers explicit operation metadata such as `rollback_kind`,
 `workload_ids`, `workload_id`, and `member_kind`, while preserving compatibility
 with existing operation IDs.
 
+For a deeper explanation of the modular adapter system and how to add new
+platforms, see [docs/platform-modularity/README.md](docs/platform-modularity/README.md).
+
 ## Current Limitations
 
 - GitHub live OIDC token inspection is not implemented yet.
