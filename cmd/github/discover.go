@@ -3,12 +3,13 @@ package github
 import (
 	"fmt"
 
+	"github.com/cyberark/conjur-onboard/cmd/shared"
 	"github.com/cyberark/conjur-onboard/internal/core"
 	ghdisc "github.com/cyberark/conjur-onboard/internal/github"
 	"github.com/spf13/cobra"
 )
 
-func newDiscoverCmd(sf *sharedFlags) *cobra.Command {
+func newDiscoverCmd(flags shared.GlobalFlags) *cobra.Command {
 	var org string
 	var token string
 	var reposFromFile string
@@ -42,7 +43,7 @@ Examples:
 				return err
 			}
 
-			wd, err := core.EnsureWorkDir(*sf.workDir)
+			wd, err := flags.EnsureWorkDir(platformID)
 			if err != nil {
 				return fmt.Errorf("work dir: %w", err)
 			}
@@ -51,7 +52,7 @@ Examples:
 				Org:       org,
 				Token:     tok,
 				RepoNames: repoNames,
-				Verbose:   *sf.verbose,
+				Verbose:   flags.IsVerbose(),
 			}
 
 			result, err := ghdisc.Discover(cmd.Context(), cfg)

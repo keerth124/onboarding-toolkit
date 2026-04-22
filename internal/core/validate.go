@@ -176,8 +176,8 @@ func authenticatorConflict(plan *Plan, body []byte) string {
 	if snapshot.Type != "" && plan.AuthenticatorType != "" && snapshot.Type != plan.AuthenticatorType {
 		return fmt.Sprintf("type is %q, want %q", snapshot.Type, plan.AuthenticatorType)
 	}
-	if snapshot.Subtype != "" && plan.Platform == "github" && snapshot.Subtype != "github_actions" {
-		return fmt.Sprintf("subtype is %q, want %q", snapshot.Subtype, "github_actions")
+	if snapshot.Subtype != "" && plan.AuthenticatorSubtype != "" && snapshot.Subtype != plan.AuthenticatorSubtype {
+		return fmt.Sprintf("subtype is %q, want %q", snapshot.Subtype, plan.AuthenticatorSubtype)
 	}
 
 	existingIdentityPath := snapshot.IdentityPath

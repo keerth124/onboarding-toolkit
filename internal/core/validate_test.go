@@ -204,6 +204,55 @@ func TestValidateBootstrapFailsOnConflictingAuthenticator(t *testing.T) {
 	}
 }
 
+func TestValidateFailsOnDeclaredSubtypeConflict(t *testing.T) {
+	workDir := preparePlanFiles(t)
+	client := &fakeAPIClient{
+		getResponses: []fakeResponse{
+			{status: 200, body: `[]`},
+			{status: 200, body: `{"name":"github-acme","type":"jwt","subtype":"gitlab","data":{"identity":{"identity_path":"data/github-apps/acme"}}}`},
+		},
+	}
+
+	_, err := Validate(context.Background(), ValidateConfig{
+		WorkDir: workDir,
+		Plan:    testPlan(),
+		Client:  client,
+	})
+	if err == nil {
+		t.Fatal("expected subtype conflict")
+	}
+	if !strings.Contains(err.Error(), `subtype is "gitlab", want "github_actions"`) {
+		t.Fatalf("err = %q, want subtype conflict", err.Error())
+	}
+}
+
+func TestValidateDoesNotAssumeGitHubSubtypeForOtherPlatforms(t *testing.T) {
+	workDir := preparePlanFiles(t)
+	plan := testPlan()
+	plan.Platform = "gitlab"
+	plan.AuthenticatorName = "gitlab-acme"
+	plan.AuthenticatorSubtype = ""
+	plan.IdentityPath = "data/gitlab-apps/acme"
+	client := &fakeAPIClient{
+		getResponses: []fakeResponse{
+			{status: 200, body: `[]`},
+			{status: 200, body: `{"name":"gitlab-acme","type":"jwt","subtype":"gitlab","data":{"identity":{"identity_path":"data/gitlab-apps/acme"}}}`},
+		},
+	}
+
+	result, err := Validate(context.Background(), ValidateConfig{
+		WorkDir: workDir,
+		Plan:    plan,
+		Client:  client,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Warnings) != 1 {
+		t.Fatalf("Warnings = %#v, want compatible existing authenticator warning", result.Warnings)
+	}
+}
+
 func TestValidateBootstrapWarnsOnCompatibleExistingAuthenticator(t *testing.T) {
 	workDir := preparePlanFiles(t)
 	client := &fakeAPIClient{

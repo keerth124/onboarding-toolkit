@@ -4,12 +4,13 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/cyberark/conjur-onboard/cmd/shared"
 	"github.com/cyberark/conjur-onboard/internal/core"
 	ghdisc "github.com/cyberark/conjur-onboard/internal/github"
 	"github.com/spf13/cobra"
 )
 
-func newInspectCmd(sf *sharedFlags) *cobra.Command {
+func newInspectCmd(flags shared.GlobalFlags) *cobra.Command {
 	var mode string
 	var repo string
 	var environment string
@@ -46,7 +47,7 @@ Examples:
 			analysis := ghdisc.BuildSyntheticClaimAnalysis(repo, environment, selection)
 			printInspection(analysis)
 
-			wd, err := core.EnsureWorkDir(*sf.workDir)
+			wd, err := flags.EnsureWorkDir(platformID)
 			if err != nil {
 				return fmt.Errorf("work dir: %w", err)
 			}

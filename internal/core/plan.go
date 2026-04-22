@@ -23,18 +23,19 @@ type Operation struct {
 
 // Plan is the manifest consumed by validate, apply, and rollback.
 type Plan struct {
-	Version           string      `json:"version"`
-	Platform          string      `json:"platform"`
-	Tenant            string      `json:"tenant"`
-	ConjurURL         string      `json:"conjur_url,omitempty"`
-	ConjurTarget      string      `json:"conjur_target,omitempty"`
-	AuthenticatorType string      `json:"authenticator_type"`
-	AuthenticatorName string      `json:"authenticator_name"`
-	ProvisioningMode  string      `json:"provisioning_mode,omitempty"`
-	AppsGroupID       string      `json:"apps_group_id"`
-	IdentityPath      string      `json:"identity_path"`
-	WorkloadCount     int         `json:"workload_count"`
-	Operations        []Operation `json:"operations"`
+	Version              string      `json:"version"`
+	Platform             string      `json:"platform"`
+	Tenant               string      `json:"tenant"`
+	ConjurURL            string      `json:"conjur_url,omitempty"`
+	ConjurTarget         string      `json:"conjur_target,omitempty"`
+	AuthenticatorType    string      `json:"authenticator_type"`
+	AuthenticatorSubtype string      `json:"authenticator_subtype,omitempty"`
+	AuthenticatorName    string      `json:"authenticator_name"`
+	ProvisioningMode     string      `json:"provisioning_mode,omitempty"`
+	AppsGroupID          string      `json:"apps_group_id"`
+	IdentityPath         string      `json:"identity_path"`
+	WorkloadCount        int         `json:"workload_count"`
+	Operations           []Operation `json:"operations"`
 }
 
 // LoadPlan reads api/plan.json from a working directory.

@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 
 	"github.com/cyberark/conjur-onboard/internal/core"
-	ghdisc "github.com/cyberark/conjur-onboard/internal/github"
+	"github.com/cyberark/conjur-onboard/internal/platform"
 )
 
 // AuthenticatorIdentity is the JWT identity binding section of the authenticator body.
@@ -32,31 +32,30 @@ type AuthenticatorBody struct {
 	Data    AuthenticatorData `json:"data"`
 }
 
-// buildAuthenticatorBody constructs the deterministic authenticator request body.
-func buildAuthenticatorBody(disc *ghdisc.DiscoveryResult, cfg GenerateConfig, selection ghdisc.ClaimSelection, authnName string) AuthenticatorBody {
-	identPath := identityPath(disc.Org)
-
+// buildAuthenticatorBody constructs the deterministic authenticator request
+// body from platform-neutral authenticator metadata.
+func buildAuthenticatorBody(authn platform.Authenticator) AuthenticatorBody {
 	return AuthenticatorBody{
-		Type:    "jwt",
-		Subtype: "github_actions",
-		Name:    authnName,
-		Enabled: cfg.CreateEnabled,
+		Type:    authn.Type,
+		Subtype: authn.Subtype,
+		Name:    authn.Name,
+		Enabled: authn.Enabled,
 		Data: AuthenticatorData{
-			JWKSUri:  disc.JWKSUri,
-			Issuer:   disc.OIDCIssuer,
-			Audience: cfg.Audience,
+			JWKSUri:  authn.JWKSURI,
+			Issuer:   authn.Issuer,
+			Audience: authn.Audience,
 			Identity: AuthenticatorIdentity{
-				TokenAppProperty: selection.TokenAppProperty,
-				IdentityPath:     identPath,
-				EnforcedClaims:   selection.EnforcedClaims,
+				TokenAppProperty: authn.TokenAppProperty,
+				IdentityPath:     authn.IdentityPath,
+				EnforcedClaims:   authn.EnforcedClaims,
 			},
 		},
 	}
 }
 
 // writeAuthenticatorArtifact writes 01-create-authenticator.json.
-func writeAuthenticatorArtifact(disc *ghdisc.DiscoveryResult, cfg GenerateConfig, selection ghdisc.ClaimSelection, authnName string) (AuthenticatorBody, error) {
-	body := buildAuthenticatorBody(disc, cfg, selection, authnName)
+func writeAuthenticatorArtifact(authn platform.Authenticator, cfg GenerateConfig) (AuthenticatorBody, error) {
+	body := buildAuthenticatorBody(authn)
 	destDir := filepath.Join(cfg.WorkDir, "api")
 	if err := core.WriteJSON(destDir, "01-create-authenticator.json", body); err != nil {
 		return body, fmt.Errorf("writing authenticator artifact: %w", err)

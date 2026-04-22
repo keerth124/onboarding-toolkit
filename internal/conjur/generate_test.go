@@ -7,24 +7,13 @@ import (
 	"strings"
 	"testing"
 
-	ghdisc "github.com/cyberark/conjur-onboard/internal/github"
+	"github.com/cyberark/conjur-onboard/internal/platform"
 )
 
 func TestGenerateUsesClaimAnalysisSelection(t *testing.T) {
 	workDir := t.TempDir()
-	disc := testDiscovery()
-	analysis := ghdisc.BuildSyntheticClaimAnalysis("acme/api", "", ghdisc.ClaimSelection{
-		TokenAppProperty: "repository",
-	})
-	writeJSONForTest(t, workDir, "claims-analysis.json", analysis)
 
-	_, err := Generate(GenerateConfig{
-		Discovery:     disc,
-		Tenant:        "myco",
-		Audience:      "conjur-cloud",
-		CreateEnabled: true,
-		WorkDir:       workDir,
-	})
+	_, err := Generate(testGenerateConfig(workDir))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -47,38 +36,24 @@ func TestGenerateUsesClaimAnalysisSelection(t *testing.T) {
 	}
 }
 
-func TestGenerateRejectsUnsupportedClaimSelection(t *testing.T) {
+func TestGenerateRejectsMissingJWTClaimSelection(t *testing.T) {
 	workDir := t.TempDir()
-	disc := testDiscovery()
-	analysis := ghdisc.BuildSyntheticClaimAnalysis("acme/api", "", ghdisc.ClaimSelection{
-		TokenAppProperty: "repository_owner",
-	})
-	writeJSONForTest(t, workDir, "claims-analysis.json", analysis)
+	cfg := testGenerateConfig(workDir)
+	cfg.Claims.SelectedClaims.TokenAppProperty = ""
+	cfg.Authenticator.TokenAppProperty = ""
 
-	_, err := Generate(GenerateConfig{
-		Discovery:     disc,
-		Tenant:        "myco",
-		Audience:      "conjur-cloud",
-		CreateEnabled: true,
-		WorkDir:       workDir,
-	})
+	_, err := Generate(cfg)
 	if err == nil {
-		t.Fatal("expected unsupported claim selection error")
+		t.Fatal("expected missing token_app_property error")
 	}
 }
 
 func TestGenerateWorkloadsOnlyOmitsAuthenticatorOperation(t *testing.T) {
 	workDir := t.TempDir()
-	disc := testDiscovery()
+	cfg := testGenerateConfig(workDir)
+	cfg.ProvisioningMode = "workloads-only"
 
-	result, err := Generate(GenerateConfig{
-		Discovery:        disc,
-		Tenant:           "myco",
-		Audience:         "conjur-cloud",
-		CreateEnabled:    true,
-		WorkDir:          workDir,
-		ProvisioningMode: "workloads-only",
-	})
+	result, err := Generate(cfg)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -108,16 +83,12 @@ func TestGenerateWorkloadsOnlyOmitsAuthenticatorOperation(t *testing.T) {
 
 func TestGenerateSelfHostedUsesPolicyGrantInsteadOfGroupMembershipAPI(t *testing.T) {
 	workDir := t.TempDir()
-	disc := testDiscovery()
+	cfg := testGenerateConfig(workDir)
+	cfg.Tenant = ""
+	cfg.ConjurURL = "https://conjur.example.com"
+	cfg.ConjurTarget = "self-hosted"
 
-	_, err := Generate(GenerateConfig{
-		Discovery:     disc,
-		ConjurURL:     "https://conjur.example.com",
-		ConjurTarget:  "self-hosted",
-		Audience:      "conjur-cloud",
-		CreateEnabled: true,
-		WorkDir:       workDir,
-	})
+	_, err := Generate(cfg)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -165,17 +136,11 @@ func TestGenerateSelfHostedUsesPolicyGrantInsteadOfGroupMembershipAPI(t *testing
 
 func TestGenerateAuthenticatorNameOverride(t *testing.T) {
 	workDir := t.TempDir()
-	disc := testDiscovery()
+	cfg := testGenerateConfig(workDir)
+	cfg.ProvisioningMode = "workloads-only"
+	cfg.AuthenticatorName = "github-shared"
 
-	result, err := Generate(GenerateConfig{
-		Discovery:         disc,
-		Tenant:            "myco",
-		Audience:          "conjur-cloud",
-		CreateEnabled:     true,
-		WorkDir:           workDir,
-		ProvisioningMode:  "workloads-only",
-		AuthenticatorName: "github-shared",
-	})
+	result, err := Generate(cfg)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -206,18 +171,74 @@ func TestGenerateAuthenticatorNameOverride(t *testing.T) {
 	}
 }
 
-func testDiscovery() *ghdisc.DiscoveryResult {
-	return &ghdisc.DiscoveryResult{
-		Platform:   "github",
-		Org:        "acme",
-		OIDCIssuer: "https://token.actions.githubusercontent.com",
-		JWKSUri:    "https://token.actions.githubusercontent.com/.well-known/jwks",
-		Repos: []ghdisc.RepoInfo{
+func testGenerateConfig(workDir string) GenerateConfig {
+	disc := testDiscovery()
+	return GenerateConfig{
+		Platform:  disc.Platform,
+		Discovery: disc,
+		Claims: platform.ClaimAnalysis{
+			Platform: disc.Platform,
+			Mode:     "synthetic",
+			SelectedClaims: platform.ClaimSelection{
+				TokenAppProperty: "repository",
+			},
+		},
+		Authenticator: platform.Authenticator{
+			Type:             "jwt",
+			Subtype:          "github_actions",
+			Name:             "github-acme",
+			Enabled:          true,
+			Issuer:           disc.OIDCProvider.Issuer,
+			JWKSURI:          disc.OIDCProvider.JWKSURI,
+			Audience:         "conjur-cloud",
+			IdentityPath:     "data/github-apps/acme",
+			TokenAppProperty: "repository",
+		},
+		Workloads: []platform.Workload{
 			{
+				FullPath: "data/github-apps/acme/acme/api",
+				HostID:   "acme/api",
+				Annotations: map[string]string{
+					"authn-jwt/github-acme/repository": "acme/api",
+				},
+			},
+		},
+		IntegrationArtifacts: []platform.IntegrationArtifact{
+			{Path: "integration/example-deploy.yml", Content: "name: Deploy with Conjur\n"},
+		},
+		NextSteps:        "# Next Steps\n",
+		ConfigYAML:       "platform: github\n",
+		Tenant:           "myco",
+		Audience:         "conjur-cloud",
+		CreateEnabled:    true,
+		WorkDir:          workDir,
+		ProvisioningMode: "bootstrap",
+	}
+}
+
+func testDiscovery() *platform.Discovery {
+	return &platform.Discovery{
+		Platform: platform.Descriptor{
+			ID:          "github",
+			DisplayName: "GitHub Actions",
+		},
+		Scope: platform.Scope{
+			ID:   "acme",
+			Name: "acme",
+			Type: "organization",
+		},
+		OIDCProvider: platform.OIDCProvider{
+			Issuer:  "https://token.actions.githubusercontent.com",
+			JWKSURI: "https://token.actions.githubusercontent.com/.well-known/jwks",
+		},
+		Resources: []platform.Resource{
+			{
+				ID:            "acme/api",
 				Name:          "api",
 				FullName:      "acme/api",
 				DefaultBranch: "main",
 				Visibility:    "private",
+				Type:          "repository",
 			},
 		},
 	}

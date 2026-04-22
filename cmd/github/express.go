@@ -4,13 +4,14 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/cyberark/conjur-onboard/cmd/shared"
 	"github.com/cyberark/conjur-onboard/internal/conjur"
 	"github.com/cyberark/conjur-onboard/internal/core"
 	ghdisc "github.com/cyberark/conjur-onboard/internal/github"
 	"github.com/spf13/cobra"
 )
 
-func newExpressCmd(sf *sharedFlags) *cobra.Command {
+func newExpressCmd(flags shared.GlobalFlags) *cobra.Command {
 	var org string
 	var token string
 	var tenant string
@@ -80,7 +81,7 @@ Examples:
 				return err
 			}
 
-			wd, err := core.EnsureWorkDir(*sf.workDir)
+			wd, err := flags.EnsureWorkDir(platformID)
 			if err != nil {
 				return fmt.Errorf("work dir: %w", err)
 			}
@@ -90,7 +91,7 @@ Examples:
 				Org:       org,
 				Token:     tok,
 				RepoNames: repoNames,
-				Verbose:   *sf.verbose,
+				Verbose:   flags.IsVerbose(),
 			}
 			disc, err := ghdisc.Discover(cmd.Context(), discCfg)
 			if err != nil {
@@ -103,8 +104,7 @@ Examples:
 
 			fmt.Println("==> Step 2/3: Generating Conjur API artifacts...")
 			fmt.Println("    Using recommended primary identity claim: 'repository'")
-			gcfg := conjur.GenerateConfig{
-				Discovery:         disc,
+			gcfg, err := newGitHubGenerateConfig(disc, githubGenerateOptions{
 				Tenant:            tenant,
 				ConjurURL:         conjurURL,
 				ConjurTarget:      conjurTarget,
@@ -113,8 +113,11 @@ Examples:
 				WorkDir:           wd,
 				ProvisioningMode:  provisioningMode,
 				AuthenticatorName: authenticatorName,
-				Verbose:           *sf.verbose,
-				DryRun:            *sf.dryRun,
+				Verbose:           flags.IsVerbose(),
+				DryRun:            flags.IsDryRun(),
+			})
+			if err != nil {
+				return fmt.Errorf("generation: %w", err)
 			}
 			plan, err := conjur.Generate(gcfg)
 			if err != nil {
@@ -146,12 +149,12 @@ Examples:
 			}
 
 			fmt.Println("==> Step 3/3: Applying to Conjur endpoint...")
-			client, err := newConjurClient(conjurConnectionFlags{
-				tenant:    tenant,
-				conjurURL: conjurURL,
-				account:   account,
-				username:  username,
-			}, apiKey, *sf.verbose)
+			client, err := (shared.ConjurConnectionFlags{
+				Tenant:    tenant,
+				ConjurURL: conjurURL,
+				Account:   account,
+				Username:  username,
+			}).NewClient(apiKey, flags.IsVerbose())
 			if err != nil {
 				return fmt.Errorf("conjur client: %w", err)
 			}
@@ -165,8 +168,8 @@ Examples:
 				WorkDir: wd,
 				Plan:    loadedPlan,
 				Client:  client,
-				DryRun:  *sf.dryRun,
-				Verbose: *sf.verbose,
+				DryRun:  flags.IsDryRun(),
+				Verbose: flags.IsVerbose(),
 			}); err != nil {
 				return fmt.Errorf("validate before apply: %w", err)
 			}
@@ -175,8 +178,8 @@ Examples:
 				WorkDir: wd,
 				Plan:    loadedPlan,
 				Client:  client,
-				DryRun:  *sf.dryRun,
-				Verbose: *sf.verbose,
+				DryRun:  flags.IsDryRun(),
+				Verbose: flags.IsVerbose(),
 			}
 			result, err := core.Apply(cmd.Context(), acfg)
 			if err != nil {

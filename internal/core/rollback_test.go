@@ -73,6 +73,90 @@ func TestRollbackRunsInverseOperationsInReverseOrder(t *testing.T) {
 	assertFileMissing(t, filepath.Join(workDir, "apply-log.json"))
 }
 
+func TestRollbackUsesExplicitRollbackKindMetadata(t *testing.T) {
+	workDir := t.TempDir()
+	writeJSONForCoreTest(t, filepath.Join(workDir, "apply-log.json"), []ApplyLogEntry{
+		{
+			OperationID: "authn-create-custom",
+			Method:      "POST",
+			Path:        "/api/authenticators",
+			Status:      201,
+		},
+		{
+			OperationID: "policy-load-custom",
+			Method:      "POST",
+			Path:        "/policies/conjur/policy/root",
+			Status:      201,
+		},
+		{
+			OperationID: "membership-custom",
+			Method:      "POST",
+			Path:        "/api/groups/conjur%2Fauthn-jwt%2Fgithub-acme%2Fapps/members",
+			Status:      201,
+		},
+	})
+	plan := testPlan()
+	plan.Operations = []Operation{
+		{
+			ID:     "authn-create-custom",
+			Method: "POST",
+			Path:   "/api/authenticators",
+			Metadata: map[string]string{
+				"rollback_kind":      "authenticator",
+				"authenticator_name": "github-acme",
+			},
+		},
+		{
+			ID:     "policy-load-custom",
+			Method: "POST",
+			Path:   "/policies/conjur/policy/root",
+			Metadata: map[string]string{
+				"rollback_kind": "workload-policy",
+				"workload_ids":  "data/github-apps/acme/acme/api",
+			},
+		},
+		{
+			ID:     "membership-custom",
+			Method: "POST",
+			Path:   "/api/groups/conjur%2Fauthn-jwt%2Fgithub-acme%2Fapps/members",
+			Metadata: map[string]string{
+				"rollback_kind": "group-member",
+				"workload_id":   "data/github-apps/acme/acme/api",
+				"member_kind":   "workload",
+			},
+		},
+	}
+	client := &fakeAPIClient{
+		deleteResponses: []fakeResponse{
+			{status: 204, body: ""},
+			{status: 204, body: ""},
+			{status: 204, body: ""},
+		},
+	}
+
+	result, err := Rollback(context.Background(), RollbackConfig{
+		WorkDir: workDir,
+		Plan:    plan,
+		Client:  client,
+		Confirm: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.OperationsRun != 3 {
+		t.Fatalf("OperationsRun = %d, want 3", result.OperationsRun)
+	}
+	if client.calls[0].method != "DELETE" || !strings.Contains(client.calls[0].path, "kind=workload") {
+		t.Fatalf("first call = %#v, want group member delete", client.calls[0])
+	}
+	if client.calls[1].path != "/api/workloads/data%2Fgithub-apps%2Facme%2Facme%2Fapi" {
+		t.Fatalf("second call = %#v, want workload delete", client.calls[1])
+	}
+	if client.calls[2].path != "/api/authenticators/github-acme" {
+		t.Fatalf("third call = %#v, want authenticator delete", client.calls[2])
+	}
+}
+
 func TestRollbackTreatsNotFoundAsSuccess(t *testing.T) {
 	workDir := prepareRollbackFiles(t)
 	client := &fakeAPIClient{

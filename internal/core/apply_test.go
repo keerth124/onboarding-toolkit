@@ -196,14 +196,15 @@ func preparePlanFiles(t *testing.T) string {
 
 func testPlan() *Plan {
 	return &Plan{
-		Version:           "v1alpha1",
-		Platform:          "github",
-		Tenant:            "myco",
-		AuthenticatorType: "jwt",
-		AuthenticatorName: "github-acme",
-		ProvisioningMode:  "bootstrap",
-		IdentityPath:      "data/github-apps/acme",
-		WorkloadCount:     1,
+		Version:              "v1alpha1",
+		Platform:             "github",
+		Tenant:               "myco",
+		AuthenticatorType:    "jwt",
+		AuthenticatorSubtype: "github_actions",
+		AuthenticatorName:    "github-acme",
+		ProvisioningMode:     "bootstrap",
+		IdentityPath:         "data/github-apps/acme",
+		WorkloadCount:        1,
 		Operations: []Operation{
 			{
 				ID:             "create-authenticator",

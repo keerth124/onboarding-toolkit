@@ -3,9 +3,9 @@ package cmd
 import (
 	"fmt"
 	"os"
-	"time"
 
 	"github.com/cyberark/conjur-onboard/cmd/github"
+	"github.com/cyberark/conjur-onboard/cmd/shared"
 	"github.com/spf13/cobra"
 )
 
@@ -48,13 +48,16 @@ func Execute() {
 }
 
 func init() {
-	defaultWorkDir := fmt.Sprintf("conjur-onboard-github-%s", time.Now().Format("20060102-150405"))
-
-	rootCmd.PersistentFlags().StringVar(&workDir, "work-dir", defaultWorkDir, "Directory for generated artifacts")
+	rootCmd.PersistentFlags().StringVar(&workDir, "work-dir", "", "Directory for generated artifacts (default: conjur-onboard-<platform>-<timestamp>)")
 	rootCmd.PersistentFlags().BoolVar(&nonInteractive, "non-interactive", false, "Suppress prompts; fail on missing values")
 	rootCmd.PersistentFlags().BoolVar(&dryRun, "dry-run", false, "Print actions without executing")
 	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "Verbose logging")
 
-	githubCmd := github.NewGithubCmd(&workDir, &nonInteractive, &dryRun, &verbose)
+	githubCmd := github.NewGithubCmd(shared.GlobalFlags{
+		WorkDir:        &workDir,
+		NonInteractive: &nonInteractive,
+		DryRun:         &dryRun,
+		Verbose:        &verbose,
+	})
 	rootCmd.AddCommand(githubCmd)
 }

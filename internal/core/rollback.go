@@ -134,10 +134,15 @@ func entryWasApplied(entry ApplyLogEntry) bool {
 }
 
 func inverseOperations(sourceOp Operation, entry ApplyLogEntry, plan *Plan) ([]Operation, string, bool) {
-	if strings.HasPrefix(sourceOp.ID, "add-group-member-") {
+	switch rollbackKind(sourceOp) {
+	case "group-member":
 		workloadID := sourceOp.Metadata["workload_id"]
 		if workloadID == "" {
 			return nil, "group member operation missing workload_id metadata", false
+		}
+		memberKind := sourceOp.Metadata["member_kind"]
+		if memberKind == "" {
+			memberKind = "workload"
 		}
 		separator := "?"
 		if strings.Contains(sourceOp.Path, "?") {
@@ -146,11 +151,10 @@ func inverseOperations(sourceOp Operation, entry ApplyLogEntry, plan *Plan) ([]O
 		return []Operation{{
 			ID:     "rollback-" + sourceOp.ID,
 			Method: "DELETE",
-			Path:   sourceOp.Path + separator + "id=" + url.QueryEscape(workloadID) + "&kind=workload",
+			Path:   sourceOp.Path + separator + "id=" + url.QueryEscape(workloadID) + "&kind=" + url.QueryEscape(memberKind),
 		}}, "", true
-	}
 
-	if sourceOp.ID == "load-workload-policy" {
+	case "workload-policy":
 		workloadIDs := splitMetadataList(sourceOp.Metadata["workload_ids"])
 		if len(workloadIDs) == 0 {
 			return nil, "workload policy operation missing workload_ids metadata", false
@@ -165,9 +169,8 @@ func inverseOperations(sourceOp Operation, entry ApplyLogEntry, plan *Plan) ([]O
 			})
 		}
 		return ops, "", true
-	}
 
-	if sourceOp.ID == "create-authenticator" {
+	case "authenticator":
 		name := sourceOp.Metadata["authenticator_name"]
 		if name == "" {
 			name = plan.AuthenticatorName
@@ -183,6 +186,24 @@ func inverseOperations(sourceOp Operation, entry ApplyLogEntry, plan *Plan) ([]O
 	}
 
 	return nil, "operation has no rollback mapping", false
+}
+
+func rollbackKind(op Operation) string {
+	if op.Metadata != nil {
+		if kind := strings.TrimSpace(op.Metadata["rollback_kind"]); kind != "" {
+			return kind
+		}
+	}
+	switch {
+	case strings.HasPrefix(op.ID, "add-group-member-"):
+		return "group-member"
+	case op.ID == "load-workload-policy":
+		return "workload-policy"
+	case op.ID == "create-authenticator":
+		return "authenticator"
+	default:
+		return ""
+	}
 }
 
 func splitMetadataList(value string) []string {

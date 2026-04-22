@@ -3,13 +3,13 @@ package github
 import (
 	"fmt"
 
+	"github.com/cyberark/conjur-onboard/cmd/shared"
 	"github.com/cyberark/conjur-onboard/internal/conjur"
-	"github.com/cyberark/conjur-onboard/internal/core"
 	ghdisc "github.com/cyberark/conjur-onboard/internal/github"
 	"github.com/spf13/cobra"
 )
 
-func newGenerateCmd(sf *sharedFlags) *cobra.Command {
+func newGenerateCmd(flags shared.GlobalFlags) *cobra.Command {
 	var tenant string
 	var conjurURL string
 	var conjurTarget string
@@ -47,7 +47,7 @@ Examples:
 				conjurTarget = "self-hosted"
 			}
 
-			wd, err := core.EnsureWorkDir(*sf.workDir)
+			wd, err := flags.EnsureWorkDir(platformID)
 			if err != nil {
 				return fmt.Errorf("work dir: %w", err)
 			}
@@ -57,8 +57,7 @@ Examples:
 				return fmt.Errorf("loading discovery.json: %w (run 'discover' first)", err)
 			}
 
-			gcfg := conjur.GenerateConfig{
-				Discovery:         disc,
+			gcfg, err := newGitHubGenerateConfig(disc, githubGenerateOptions{
 				Tenant:            tenant,
 				ConjurURL:         conjurURL,
 				ConjurTarget:      conjurTarget,
@@ -67,8 +66,11 @@ Examples:
 				WorkDir:           wd,
 				ProvisioningMode:  provisioningMode,
 				AuthenticatorName: authenticatorName,
-				Verbose:           *sf.verbose,
-				DryRun:            *sf.dryRun,
+				Verbose:           flags.IsVerbose(),
+				DryRun:            flags.IsDryRun(),
+			})
+			if err != nil {
+				return err
 			}
 
 			plan, err := conjur.Generate(gcfg)
