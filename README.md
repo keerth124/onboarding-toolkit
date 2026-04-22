@@ -3,19 +3,25 @@
 Conjur Onboarding Toolkit, `conjur-onboard`, generates reviewable CyberArk
 Conjur onboarding artifacts for CI/CD workloads.
 
-The current implemented slice is GitHub Actions using GitHub OIDC and a Conjur
-JWT authenticator.
+The current implemented slices are GitHub Actions using GitHub OIDC and Jenkins
+using JWTs issued by the CyberArk Conjur Jenkins plugin.
 
-The implementation is now organized around reusable platform contracts. GitHub
-is the first adapter, while Conjur generation, apply, validate, rollback, and
-shared CLI wiring are structured for reuse by future platforms.
+The implementation is organized around reusable platform contracts. GitHub and
+Jenkins adapters feed the shared Conjur generation, apply, validate, rollback,
+and CLI wiring.
 
 ## What It Does Today
 
 - Discovers repositories and environments for a GitHub organization or user
   owner.
+- Discovers Jenkins credential scopes from a jobs file or Jenkins Remote API.
 - Generates a GitHub Actions JWT authenticator body.
+- Generates a Jenkins JWT authenticator body using `jenkins_full_name` as the
+  identity claim and `https://<jenkins-url>/jwtauth/conjur-jwk-set` as the JWKS
+  URI.
 - Generates Conjur workload policy YAML for discovered repositories.
+- Generates Conjur workload policy YAML for selected Jenkins global, folder,
+  multibranch, pipeline, or job scopes.
 - Adds JWT claim annotations to generated workloads, including the GitHub
   `repository` claim used by the authenticator.
 - Generates group membership API bodies for the authenticator `apps` group on
@@ -35,6 +41,8 @@ shared CLI wiring are structured for reuse by future platforms.
 
 - Go 1.22 or newer.
 - GitHub access to the target organization or user-owned repository.
+- Jenkins access to the target controller when using API discovery, or a
+  prepared jobs file when using `--jobs-from-file`.
 - One GitHub auth option:
   - GitHub CLI, `gh`, authenticated with `repo` and `read:org` scopes.
   - `GITHUB_TOKEN`.
@@ -72,6 +80,37 @@ POST https://<conjur-host>/authn/<account>/<username>/authenticate
 
 CyberArk Identity session auth is still a PRD target, not implemented in this
 slice.
+
+## Jenkins Scope Selection
+
+Jenkins onboarding treats a workload as a Jenkins credential scope identity, not
+necessarily a leaf job. A selected scope can be:
+
+- `GlobalCredentials`
+- A folder, for example `Payments`
+- A nested folder, for example `Payments/API`
+- A multibranch parent
+- A leaf pipeline or job
+
+Use a jobs file to keep onboarding explicit in large Jenkins environments:
+
+```text
+GlobalCredentials|global
+Payments|folder
+Payments/API|folder
+Payments/API/deploy|pipeline
+```
+
+Then run:
+
+```sh
+conjur-onboard jenkins discover --url https://jenkins.example.com --jobs-from-file jobs.txt
+conjur-onboard jenkins generate --tenant myco
+```
+
+When using Jenkins API discovery on a large controller, `generate` requires an
+explicit selection such as `--include "Payments/**"`, `--include-type folder`,
+or `--all`.
 
 ## Build
 

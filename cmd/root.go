@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/cyberark/conjur-onboard/cmd/github"
+	"github.com/cyberark/conjur-onboard/cmd/jenkins"
 	"github.com/cyberark/conjur-onboard/cmd/shared"
 	"github.com/spf13/cobra"
 )
@@ -26,10 +27,13 @@ and applying them to your Conjur endpoint.
 
 Platforms:
   github       GitHub Actions via GitHub OIDC
+  jenkins      Jenkins via CyberArk Conjur Jenkins plugin
 
 Examples:
   conjur-onboard github express --org acme-corp --tenant myco
   conjur-onboard github express --org acme-corp --conjur-url https://conjur.example.com
+  conjur-onboard jenkins discover --url https://jenkins.example.com --jobs-from-file jobs.txt
+  conjur-onboard jenkins generate --tenant myco --include "Payments/**"
 
   conjur-onboard github discover --org acme-corp
   conjur-onboard github inspect --repo acme-corp/api-service
@@ -60,4 +64,12 @@ func init() {
 		Verbose:        &verbose,
 	})
 	rootCmd.AddCommand(githubCmd)
+
+	jenkinsCmd := jenkins.NewJenkinsCmd(shared.GlobalFlags{
+		WorkDir:        &workDir,
+		NonInteractive: &nonInteractive,
+		DryRun:         &dryRun,
+		Verbose:        &verbose,
+	})
+	rootCmd.AddCommand(jenkinsCmd)
 }
