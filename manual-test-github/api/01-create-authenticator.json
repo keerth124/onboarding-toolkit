@@ -1,6 +1,5 @@
 {
   "type": "jwt",
-  "subtype": "github_actions",
   "name": "github-keerth124",
   "enabled": true,
   "data": {

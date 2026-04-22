@@ -21,7 +21,7 @@ jobs:
         with:
           url: https://localhost:443
           authn_id: github-keerth124
-          host_id: data/github-apps/keerth124/keerth124/ABCStore
+          host_id: data/github-apps/keerth124/ABCStore
           secrets: |
             data/vault/example/safe/test-secret|TEST_SECRET
 

@@ -29,6 +29,10 @@ Collect these before starting:
 - Optional existing authenticator name for workloads-only testing
 - Optional `--insecure-skip-tls-verify` for local self-signed Conjur endpoints
 
+When testing Conjur API key auth manually, send the API key as the raw request
+body with `Content-Type: text/plain`. Bruno should use a plain text body, not
+JSON or form data.
+
 The tenant value is the subdomain only. Use `my-tenant`, not
 `https://my-tenant.secretsmgr.cyberark.cloud/api`. The tool adds the SaaS
 `/api` base path internally.

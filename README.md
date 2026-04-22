@@ -72,6 +72,10 @@ Current Conjur auth uses API key auth. SaaS tenant mode uses this URL shape:
 POST https://<tenant>.secretsmgr.cyberark.cloud/api/authn/conjur/<username>/authenticate
 ```
 
+When testing this endpoint with curl, Bruno, or another API client, send the API
+key as the raw request body with `Content-Type: text/plain`. Do not send JSON,
+form data, or a named `api_key` field.
+
 Self-hosted mode uses the provided appliance URL without appending `/api`:
 
 ```text
