@@ -114,6 +114,14 @@ func Generate(cfg GenerateConfig) (*GenerateResult, error) {
 		return nil, err
 	}
 
+	if cfg.ConjurTarget == "self-hosted" {
+		if err := removeIdentityBranchArtifact(cfg.WorkDir); err != nil {
+			return nil, err
+		}
+	} else if err := writeIdentityBranchArtifact(authn.IdentityPath, cfg); err != nil {
+		return nil, err
+	}
+
 	if err := writeWorkloadPolicyArtifact(authn.IdentityPath, cfg.Workloads, cfg); err != nil {
 		return nil, err
 	}
@@ -258,11 +266,30 @@ func buildPlan(cfg GenerateConfig, authn platform.Authenticator, groupID string)
 	for _, workload := range cfg.Workloads {
 		workloadIDs = append(workloadIDs, workload.FullPath)
 	}
+	if cfg.ConjurTarget != "self-hosted" {
+		parent, _, err := identityPathParentLeaf(authn.IdentityPath)
+		if err == nil {
+			ops = append(ops, core.Operation{
+				ID:             "load-identity-branch",
+				Description:    fmt.Sprintf("Ensure %s identity branch exists under %s", platformName, parent),
+				Method:         "POST",
+				Path:           policyAppendPath(parent, cfg.ConjurTarget),
+				BodyFile:       "api/02-identity-branch.yml",
+				ContentType:    "application/x-yaml",
+				ExpectedStatus: []int{200, 201},
+				IdempotentOn:   []int{409},
+				Metadata: map[string]string{
+					"rollback_behavior": "manual-policy-review",
+					"rollback_kind":     "manual-policy-review",
+				},
+			})
+		}
+	}
 	ops = append(ops, core.Operation{
 		ID:             "load-workload-policy",
 		Description:    fmt.Sprintf("Create %s workload identities under the authenticator identity path", platformName),
 		Method:         "POST",
-		Path:           policyRootPath(cfg.ConjurTarget),
+		Path:           workloadPolicyPath(authn.IdentityPath, cfg.ConjurTarget),
 		BodyFile:       "api/02-workloads.yml",
 		ContentType:    "application/x-yaml",
 		ExpectedStatus: []int{200, 201},
@@ -339,6 +366,20 @@ func policyRootPath(target string) string {
 		return "/policies/{account}/policy/root"
 	}
 	return "/policies/conjur/policy/data"
+}
+
+func workloadPolicyPath(identityPath string, target string) string {
+	if target == "self-hosted" {
+		return policyRootPath(target)
+	}
+	return policyAppendPath(identityPath, target)
+}
+
+func policyAppendPath(policyID string, target string) string {
+	if target == "self-hosted" {
+		return policyRootPath(target)
+	}
+	return "/policies/conjur/policy/" + url.PathEscape(strings.Trim(policyID, "/"))
 }
 
 func removeAuthenticatorArtifact(workDir string) error {

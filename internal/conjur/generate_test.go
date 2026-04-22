@@ -35,10 +35,21 @@ func TestGenerateUsesClaimAnalysisSelection(t *testing.T) {
 		t.Fatalf("workload policy missing repository JWT annotation:\n%s", string(workloadPolicy))
 	}
 	if !strings.Contains(string(workloadPolicy), "# Load via: POST /policies/conjur/policy/data") {
-		t.Fatalf("workload policy load path is not SaaS data branch:\n%s", string(workloadPolicy))
+		t.Fatalf("workload policy load path is not SaaS identity branch:\n%s", string(workloadPolicy))
 	}
-	if !strings.Contains(string(workloadPolicy), "  id: github-apps/acme\n") {
-		t.Fatalf("workload policy id is not relative to SaaS data branch:\n%s", string(workloadPolicy))
+	if strings.Contains(string(workloadPolicy), "- !policy") {
+		t.Fatalf("SaaS workload policy should load hosts directly into the identity branch:\n%s", string(workloadPolicy))
+	}
+	if !strings.Contains(string(workloadPolicy), "- !host\n  id: api\n") {
+		t.Fatalf("SaaS workload policy missing direct host entry:\n%s", string(workloadPolicy))
+	}
+
+	branchPolicy, err := os.ReadFile(filepath.Join(workDir, "api", "02-identity-branch.yml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(branchPolicy), "- !policy\n  id: acme\n") {
+		t.Fatalf("identity branch policy should create only the leaf branch:\n%s", string(branchPolicy))
 	}
 
 	var plan struct {
@@ -49,13 +60,23 @@ func TestGenerateUsesClaimAnalysisSelection(t *testing.T) {
 	}
 	readJSONForTest(t, filepath.Join(workDir, "api", "plan.json"), &plan)
 	foundWorkloadLoad := false
+	foundBranchLoad := false
 	for _, op := range plan.Operations {
-		if op.ID == "load-workload-policy" {
-			foundWorkloadLoad = true
-			if op.Path != "/policies/conjur/policy/data" {
-				t.Fatalf("load-workload-policy path = %q, want /policies/conjur/policy/data", op.Path)
+		if op.ID == "load-identity-branch" {
+			foundBranchLoad = true
+			if op.Path != "/policies/conjur/policy/data%2Fgithub-apps" {
+				t.Fatalf("load-identity-branch path = %q, want /policies/conjur/policy/data%%2Fgithub-apps", op.Path)
 			}
 		}
+		if op.ID == "load-workload-policy" {
+			foundWorkloadLoad = true
+			if op.Path != "/policies/conjur/policy/data%2Fgithub-apps%2Facme" {
+				t.Fatalf("load-workload-policy path = %q, want /policies/conjur/policy/data%%2Fgithub-apps%%2Facme", op.Path)
+			}
+		}
+	}
+	if !foundBranchLoad {
+		t.Fatal("load-identity-branch operation not found")
 	}
 	if !foundWorkloadLoad {
 		t.Fatal("load-workload-policy operation not found")

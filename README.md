@@ -194,9 +194,15 @@ authenticator metadata, including `authenticator_type`,
 `authenticator_subtype`; self-hosted and Enterprise plans omit it because the
 self-hosted create-authenticator API does not use a subtype field.
 
-For SaaS, `api/02-workloads.yml` is appended to the `data` policy branch because
-SaaS tenants do not expose a loadable `root` policy branch. Self-hosted plans
-load workload policy under `root`.
+For SaaS, COT appends policy to existing `data/...` branches because SaaS
+tenants do not expose a loadable `root` policy branch. The generated plan first
+loads `api/02-identity-branch.yml` into the parent branch, for example
+`data/github-apps`, to create the org/controller branch. It then loads
+`api/02-workloads.yml` directly into the leaf branch, for example
+`data/github-apps/acme`, so hosts are created as `api`, not as a flattened
+`github-apps/acme/api` host. The platform parent branch, such as
+`data/github-apps`, must already exist and be writable by the apply identity.
+Self-hosted plans load workload policy under `root`.
 
 ## Apply To Conjur
 

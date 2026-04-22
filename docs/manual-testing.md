@@ -231,8 +231,13 @@ Review `api/plan.json` and confirm:
 - `authenticator_subtype` is `github_actions`.
 - `authenticator_name` is `github-<org>`.
 - The first operation is `create-authenticator`.
-- The `load-workload-policy` operation uses `/policies/conjur/policy/data` for
-  SaaS plans, not `root`.
+- SaaS plans include `load-identity-branch` and `load-workload-policy`.
+- `load-identity-branch` appends to the parent branch such as
+  `/policies/conjur/policy/data%2Fgithub-apps`.
+- `load-workload-policy` appends hosts directly to the leaf branch such as
+  `/policies/conjur/policy/data%2Fgithub-apps%2F<org>`.
+- The platform parent branch, such as `data/github-apps`, must already exist
+  and be writable by the apply identity.
 - Generated rollback-capable operations include `metadata.rollback_kind`.
 - Workload IDs are under `data/github-apps/<org>/...` and use the repository
   name only, for example `data/github-apps/acme/api`.
