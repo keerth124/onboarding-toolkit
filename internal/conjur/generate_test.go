@@ -48,8 +48,8 @@ func TestGenerateUsesClaimAnalysisSelection(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(branchPolicy), "- !policy\n  id: acme\n") {
-		t.Fatalf("identity branch policy should create only the leaf branch:\n%s", string(branchPolicy))
+	if !strings.Contains(string(branchPolicy), "- !policy\n  id: github-apps\n  body:\n    - !policy\n      id: acme\n") {
+		t.Fatalf("identity branch policy should create the full branch chain under data:\n%s", string(branchPolicy))
 	}
 
 	var plan struct {
@@ -64,8 +64,8 @@ func TestGenerateUsesClaimAnalysisSelection(t *testing.T) {
 	for _, op := range plan.Operations {
 		if op.ID == "load-identity-branch" {
 			foundBranchLoad = true
-			if op.Path != "/policies/conjur/policy/data%2Fgithub-apps" {
-				t.Fatalf("load-identity-branch path = %q, want /policies/conjur/policy/data%%2Fgithub-apps", op.Path)
+			if op.Path != "/policies/conjur/policy/data" {
+				t.Fatalf("load-identity-branch path = %q, want /policies/conjur/policy/data", op.Path)
 			}
 		}
 		if op.ID == "load-workload-policy" {

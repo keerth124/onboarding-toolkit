@@ -267,13 +267,13 @@ func buildPlan(cfg GenerateConfig, authn platform.Authenticator, groupID string)
 		workloadIDs = append(workloadIDs, workload.FullPath)
 	}
 	if cfg.ConjurTarget != "self-hosted" {
-		parent, _, err := identityPathParentLeaf(authn.IdentityPath)
+		base, _, err := identityBranchBaseAndChain(authn.IdentityPath)
 		if err == nil {
 			ops = append(ops, core.Operation{
 				ID:             "load-identity-branch",
-				Description:    fmt.Sprintf("Ensure %s identity branch exists under %s", platformName, parent),
+				Description:    fmt.Sprintf("Ensure %s identity branch exists under %s", platformName, base),
 				Method:         "POST",
-				Path:           policyAppendPath(parent, cfg.ConjurTarget),
+				Path:           policyAppendPath(base, cfg.ConjurTarget),
 				BodyFile:       "api/02-identity-branch.yml",
 				ContentType:    "application/x-yaml",
 				ExpectedStatus: []int{200, 201},
