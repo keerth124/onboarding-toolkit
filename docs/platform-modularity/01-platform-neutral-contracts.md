@@ -1,5 +1,12 @@
 # Slice 1: Platform-Neutral Contracts
 
+Status: Implemented.
+
+Implemented in:
+
+- `internal/platform/contracts.go`
+- `internal/platform/contracts_test.go`
+
 ## Goal
 
 Define the reusable platform model without changing current GitHub behavior.
@@ -8,7 +15,7 @@ This slice creates the shared vocabulary future platform adapters will use, whil
 
 ## Motivation
 
-The current project has a reusable execution core, but the generation path is GitHub-shaped. Before moving code around, define the target contracts so each later refactor has a stable destination.
+Before this slice, the project had a reusable execution core, but the generation path was GitHub-shaped. The first step was to define the target contracts so each later refactor had a stable destination.
 
 ## Scope
 
@@ -50,10 +57,11 @@ A platform adapter should be responsible for:
 
 ## Acceptance Criteria
 
-- The new platform contract package compiles.
-- Existing tests still pass.
-- No generated GitHub artifact shape intentionally changes.
-- The contract is documented enough that GitLab or Jenkins could implement it without reading GitHub internals first.
+- Done: The new `internal/platform` contract package compiles.
+- Done: Existing tests pass.
+- Done: GitHub behavior was left unchanged in this slice.
+- Done: The contract defines normalized discovery, workload, claim,
+  authenticator, integration artifact, and adapter types.
 
 ## Residual Risk
 

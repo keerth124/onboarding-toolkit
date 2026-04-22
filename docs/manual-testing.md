@@ -217,8 +217,11 @@ Expected result:
 Review `api/plan.json` and confirm:
 
 - `provisioning_mode` is `bootstrap`.
+- `authenticator_type` is `jwt`.
+- `authenticator_subtype` is `github_actions`.
 - `authenticator_name` is `github-<org>`.
 - The first operation is `create-authenticator`.
+- Generated rollback-capable operations include `metadata.rollback_kind`.
 - Workload IDs are under `data/github-apps/<org>/...`.
 - Each generated host has a JWT repository annotation such as
   `authn-jwt/github-<org>/repository: <owner>/<repo>`.
@@ -402,6 +405,7 @@ $env:WORKLOADS_ONLY_DIR = ".\manual-test-github-workloads-only"
 Review `api/plan.json` and confirm:
 
 - `provisioning_mode` is `workloads-only`.
+- `authenticator_subtype` remains `github_actions`.
 - There is no `create-authenticator` operation.
 - The group membership path still targets the existing authenticator apps
   group.
@@ -450,6 +454,8 @@ Expected result:
 - `api/04-grant-authenticator-access.yml` exists.
 - `api/plan.json` includes `load-authenticator-grants`.
 - `api/plan.json` does not include `add-group-member-*` operations.
+- `load-authenticator-grants` includes metadata noting manual policy review
+  rollback behavior.
 
 Apply with:
 

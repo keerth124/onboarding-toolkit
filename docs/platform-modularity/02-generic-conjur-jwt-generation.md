@@ -1,5 +1,15 @@
 # Slice 2: Generic Conjur/JWT Generation
 
+Status: Implemented.
+
+Implemented primarily in:
+
+- `internal/conjur/generate.go`
+- `internal/conjur/authenticator.go`
+- `internal/conjur/workload.go`
+- `internal/conjur/groups.go`
+- `cmd/github/generation_config.go`
+
 ## Goal
 
 Extract reusable Conjur artifact generation so GitHub is no longer embedded in `internal/conjur`.
@@ -59,10 +69,12 @@ The generic generator should receive:
 
 ## Acceptance Criteria
 
-- `internal/conjur` no longer imports `internal/github`.
-- Existing GitHub generation tests pass after temporary adapter glue is added.
-- Generated GitHub plans remain semantically equivalent.
-- The generic generator can be unit-tested without constructing GitHub discovery objects.
+- Done: `internal/conjur` no longer imports `internal/github`.
+- Done: GitHub generation goes through compatibility glue that builds generic
+  generation input.
+- Done: Generated GitHub plans remain semantically equivalent and now include
+  additional platform-neutral metadata needed by later slices.
+- Done: The generic generator is unit-tested without GitHub discovery objects.
 
 ## Residual Risk
 

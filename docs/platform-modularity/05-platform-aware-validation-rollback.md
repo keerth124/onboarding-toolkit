@@ -1,12 +1,23 @@
 # Slice 5: Platform-Aware Validation And Rollback
 
+Status: Implemented.
+
+Implemented primarily in:
+
+- `internal/core/plan.go`
+- `internal/core/validate.go`
+- `internal/core/rollback.go`
+- `internal/conjur/generate.go`
+- `internal/core/validate_test.go`
+- `internal/core/rollback_test.go`
+
 ## Goal
 
 Remove remaining platform assumptions from `internal/core` while keeping validation and rollback behavior safe for GitHub and future platforms.
 
 ## Motivation
 
-`internal/core` should be the platform-neutral executor. It currently contains a GitHub-specific subtype check and rollback logic that depends on operation ID conventions. These are manageable for one platform but become fragile as more adapters generate plans.
+`internal/core` should be the platform-neutral executor. Before this slice, it contained a GitHub-specific subtype check and rollback logic that depended on operation ID conventions. Those were manageable for one platform but became fragile as more adapters generated plans.
 
 ## Scope
 
@@ -59,11 +70,16 @@ Core can still provide built-in rollback handlers for common Conjur operation ki
 
 ## Acceptance Criteria
 
-- `internal/core` has no hardcoded GitHub platform checks.
-- GitHub validation still catches authenticator subtype and identity path conflicts.
-- GitHub rollback tests still pass.
-- Generic validation tests prove a non-GitHub plan does not require GitHub subtype behavior.
-- Existing apply log compatibility is preserved.
+- Done: `internal/core` has no hardcoded GitHub platform checks.
+- Done: GitHub validation still catches authenticator subtype and identity path
+  conflicts using `authenticator_subtype` in `api/plan.json`.
+- Done: GitHub rollback tests still pass.
+- Done: Generic validation tests prove a non-GitHub plan does not require
+  GitHub subtype behavior.
+- Done: Existing apply log compatibility is preserved through operation ID
+  fallback.
+- Done: New generated plans include rollback metadata such as
+  `rollback_kind`, `workload_ids`, `workload_id`, and `member_kind`.
 
 ## Residual Risk
 

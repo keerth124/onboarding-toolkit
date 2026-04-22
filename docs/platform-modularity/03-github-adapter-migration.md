@@ -1,5 +1,14 @@
 # Slice 3: GitHub Adapter Migration
 
+Status: Implemented.
+
+Implemented primarily in:
+
+- `internal/github/adapter.go`
+- `internal/github/adapter_test.go`
+- `cmd/github/generation_config.go`
+- `cmd/github/generation_config_test.go`
+
 ## Goal
 
 Make GitHub the first implementation of the platform adapter contracts and route GitHub generation through the generic Conjur/JWT generator.
@@ -44,12 +53,16 @@ The GitHub adapter should own:
 
 ## Acceptance Criteria
 
-- `conjur-onboard github discover` still writes compatible `discovery.json`.
-- `conjur-onboard github inspect` still writes compatible `claims-analysis.json`.
-- `conjur-onboard github generate` still writes the expected API artifacts.
-- `conjur-onboard github express` still works.
-- Existing GitHub unit tests pass.
-- New tests cover GitHub adapter workload mapping and metadata.
+- Done: `conjur-onboard github discover` still writes compatible
+  `discovery.json`.
+- Done: `conjur-onboard github inspect` still writes compatible
+  `claims-analysis.json`.
+- Done: `conjur-onboard github generate` still writes the expected API
+  artifacts through the generic generator.
+- Done: `conjur-onboard github express` still uses the GitHub adapter path.
+- Done: Existing GitHub unit tests pass.
+- Done: Adapter tests cover metadata, normalized discovery, default claim
+  selection, and workload mapping.
 
 ## Residual Risk
 

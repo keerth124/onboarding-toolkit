@@ -1,12 +1,23 @@
 # Slice 4: CLI Shared Command Wiring
 
+Status: Implemented.
+
+Implemented primarily in:
+
+- `cmd/shared/flags.go`
+- `cmd/shared/conjur.go`
+- `cmd/shared/commands.go`
+- `cmd/shared/flags_test.go`
+- `cmd/github/github.go`
+- `cmd/root.go`
+
 ## Goal
 
 Generalize CLI wiring so future platform commands can reuse common apply, validate, rollback, Conjur connection, and work directory behavior.
 
 ## Motivation
 
-Right now root command registration and shared Conjur flags live in GitHub-specific command code. A second platform would either duplicate that code or need to refactor it under pressure. This slice makes the CLI shape ready for more adapters.
+Before this slice, root command registration and shared Conjur flags lived in GitHub-specific command code. A second platform would either have duplicated that code or needed to refactor it under pressure. This slice made the CLI shape ready for more adapters.
 
 ## Scope
 
@@ -50,11 +61,14 @@ The reusable command helpers should cover:
 
 ## Acceptance Criteria
 
-- `conjur-onboard github apply` behavior remains compatible.
-- `conjur-onboard github validate` behavior remains compatible.
-- `conjur-onboard github rollback` behavior remains compatible.
-- Shared command code can be reused by a future `cmd/gitlab` or `cmd/jenkins` package.
-- Root help does not imply unsupported platforms are implemented.
+- Done: `conjur-onboard github apply` behavior remains compatible.
+- Done: `conjur-onboard github validate` behavior remains compatible.
+- Done: `conjur-onboard github rollback` behavior remains compatible.
+- Done: Shared command code can be reused by a future `cmd/gitlab` or
+  `cmd/jenkins` package.
+- Done: Root help lists only the implemented `github` platform.
+- Done: `--work-dir` now defaults dynamically to
+  `conjur-onboard-<platform>-<timestamp>` when omitted.
 
 ## Residual Risk
 

@@ -6,6 +6,10 @@ Conjur onboarding artifacts for CI/CD workloads.
 The current implemented slice is GitHub Actions using GitHub OIDC and a Conjur
 JWT authenticator.
 
+The implementation is now organized around reusable platform contracts. GitHub
+is the first adapter, while Conjur generation, apply, validate, rollback, and
+shared CLI wiring are structured for reuse by future platforms.
+
 ## What It Does Today
 
 - Discovers repositories and environments for a GitHub organization or user
@@ -136,6 +140,11 @@ Review these generated files before applying:
 - `api/plan.json`
 - `integration/example-deploy.yml`
 - `NEXT_STEPS.md`
+
+`api/plan.json` is the stable contract consumed by `validate`, `apply`, and
+`rollback`. It records platform-neutral Conjur operations plus expected
+authenticator metadata, including `authenticator_type`,
+`authenticator_subtype`, `authenticator_name`, and `identity_path`.
 
 ## Apply To Conjur
 
@@ -268,6 +277,33 @@ CONJUR_API_KEY=<api-key> ./bin/conjur-onboard github apply \
 See [docs/manual-testing.md](docs/manual-testing.md) for a fuller macOS and
 Windows walkthrough, including a low-risk dry-run path, targeted repo discovery,
 live Conjur validation, apply, workloads-only, self-hosted, and rollback checks.
+
+## Architecture
+
+The codebase is split so future platforms can reuse the non-platform-specific
+pieces:
+
+- `internal/platform`: shared platform contracts, normalized discovery,
+  workload, claim, authenticator, integration artifact, and adapter types.
+- `internal/github`: GitHub discovery, claim analysis, and the GitHub platform
+  adapter. The adapter owns GitHub-specific defaults such as `repository` claim
+  identity, `github_actions` subtype, `github-<org>` authenticator names, and
+  `data/github-apps/<org>` identity paths.
+- `internal/conjur`: platform-neutral Conjur artifact generation for JWT
+  onboarding plans. It consumes `internal/platform` types and does not import
+  GitHub internals.
+- `internal/core`: platform-neutral plan loading, validation, apply, rollback,
+  logs, and operation execution.
+- `cmd/shared`: reusable CLI flag handling and shared `validate`, `apply`, and
+  `rollback` command builders.
+- `cmd/github`: GitHub-specific command registration and flows for `discover`,
+  `inspect`, `generate`, and `express`.
+
+Validation compares generic expected authenticator fields declared in
+`api/plan.json`; it does not hardcode GitHub-specific subtype behavior.
+Rollback prefers explicit operation metadata such as `rollback_kind`,
+`workload_ids`, `workload_id`, and `member_kind`, while preserving compatibility
+with existing operation IDs.
 
 ## Current Limitations
 
