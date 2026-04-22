@@ -27,6 +27,7 @@ Collect these before starting:
 - Conjur username: `CONJUR_USERNAME`
 - Conjur API key: `CONJUR_API_KEY`
 - Optional existing authenticator name for workloads-only testing
+- Optional `--insecure-skip-tls-verify` for local self-signed Conjur endpoints
 
 The tenant value is the subdomain only. Use `my-tenant`, not
 `https://my-tenant.secretsmgr.cyberark.cloud/api`. The tool adds the SaaS
@@ -34,7 +35,12 @@ The tenant value is the subdomain only. Use `my-tenant`, not
 
 For self-hosted targets, use the appliance URL as-is, for example
 `https://conjur.example.com`. The tool does not append `/api` to
-`--conjur-url`.
+`--conjur-url`. Authenticator creation uses
+`/authenticators/<account-name>` on that URL.
+
+If the local endpoint uses a self-signed certificate, add
+`--insecure-skip-tls-verify` to live `validate`, `apply`, `rollback`, or
+`express --apply` commands. Do not use this flag for production endpoints.
 
 ## 1. Build And Smoke Test
 
@@ -452,6 +458,9 @@ $env:CONJUR_ACCOUNT = "conjur"
 Expected result:
 
 - `api/04-grant-authenticator-access.yml` exists.
+- `api/01-create-authenticator.json` does not include `subtype`.
+- `api/plan.json` uses `/authenticators/{account}` for
+  `create-authenticator`.
 - `api/plan.json` includes `load-authenticator-grants`.
 - `api/plan.json` does not include `add-group-member-*` operations.
 - `load-authenticator-grants` includes metadata noting manual policy review
@@ -480,7 +489,8 @@ Windows PowerShell:
 ```
 
 If your Conjur account is not `conjur`, pass the correct account with
-`--account`.
+`--account`; `apply`, `validate`, and `rollback` use that value for the
+self-hosted `/authenticators/<account-name>` endpoint.
 
 ## 12. Rollback
 
@@ -574,6 +584,8 @@ COT intentionally does not create safe grants.
   `validate`, `apply`, or `rollback`.
 - HTTP 401 from Conjur auth: check `--tenant` or `--conjur-url`, `--account`,
   `--username`, and `CONJUR_API_KEY`.
+- TLS certificate errors against a local self-signed endpoint: retry the live
+  command with `--insecure-skip-tls-verify`.
 - HTTP 403 on Conjur API calls: the tool identity likely lacks authenticator or
   policy management privileges.
 - `workloads-only mode requires existing authenticator`: run bootstrap first or

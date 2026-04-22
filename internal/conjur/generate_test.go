@@ -109,9 +109,10 @@ func TestGenerateSelfHostedUsesPolicyGrantInsteadOfGroupMembershipAPI(t *testing
 	}
 
 	var plan struct {
-		ConjurURL    string `json:"conjur_url"`
-		ConjurTarget string `json:"conjur_target"`
-		Operations   []struct {
+		ConjurURL            string `json:"conjur_url"`
+		ConjurTarget         string `json:"conjur_target"`
+		AuthenticatorSubtype string `json:"authenticator_subtype"`
+		Operations           []struct {
 			ID   string `json:"id"`
 			Path string `json:"path"`
 		} `json:"operations"`
@@ -123,6 +124,13 @@ func TestGenerateSelfHostedUsesPolicyGrantInsteadOfGroupMembershipAPI(t *testing
 	if plan.ConjurURL != "https://conjur.example.com" {
 		t.Fatalf("ConjurURL = %q, want https://conjur.example.com", plan.ConjurURL)
 	}
+	if plan.AuthenticatorSubtype != "" {
+		t.Fatalf("AuthenticatorSubtype = %q, want empty for self-hosted", plan.AuthenticatorSubtype)
+	}
+	first := plan.Operations[0]
+	if first.ID != "create-authenticator" || first.Path != "/authenticators/{account}" {
+		t.Fatalf("first operation = %#v, want self-hosted create authenticator endpoint", first)
+	}
 	for _, op := range plan.Operations {
 		if strings.HasPrefix(op.ID, "add-group-member-") {
 			t.Fatal("self-hosted plan included group membership REST operation")
@@ -131,6 +139,12 @@ func TestGenerateSelfHostedUsesPolicyGrantInsteadOfGroupMembershipAPI(t *testing
 	last := plan.Operations[len(plan.Operations)-1]
 	if last.ID != "load-authenticator-grants" || last.Path != "/policies/conjur/policy/root" {
 		t.Fatalf("last operation = %#v, want load-authenticator-grants policy load", last)
+	}
+
+	var body map[string]any
+	readJSONForTest(t, filepath.Join(workDir, "api", "01-create-authenticator.json"), &body)
+	if _, ok := body["subtype"]; ok {
+		t.Fatalf("self-hosted authenticator body included subtype: %#v", body["subtype"])
 	}
 }
 

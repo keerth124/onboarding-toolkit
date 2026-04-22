@@ -45,6 +45,8 @@ shared CLI wiring are structured for reuse by future platforms.
 - For Conjur Enterprise or Secrets Manager Self-Hosted validation/apply/rollback:
   - Full appliance URL, for example `https://conjur.example.com`.
   - Optional Conjur account name if it is not `conjur`.
+  - Optional `--insecure-skip-tls-verify` for local test endpoints with
+    self-signed certificates.
 - For all Conjur targets:
   - Conjur username.
   - Conjur API key in `CONJUR_API_KEY`.
@@ -144,7 +146,9 @@ Review these generated files before applying:
 `api/plan.json` is the stable contract consumed by `validate`, `apply`, and
 `rollback`. It records platform-neutral Conjur operations plus expected
 authenticator metadata, including `authenticator_type`,
-`authenticator_subtype`, `authenticator_name`, and `identity_path`.
+`authenticator_name`, and `identity_path`. SaaS GitHub plans also include
+`authenticator_subtype`; self-hosted and Enterprise plans omit it because the
+self-hosted create-authenticator API does not use a subtype field.
 
 ## Apply To Conjur
 
@@ -254,11 +258,14 @@ appliance URL and the self-hosted target mode:
 ```
 
 For self-hosted targets, the tool uses `--conjur-url` as provided and does not
-append `/api`. The SaaS `/api` base suffix is added only when you use
-`--tenant`.
+append `/api`. The generated create-authenticator operation uses
+`/authenticators/{account}`, and live commands replace `{account}` with
+`--account` or the default `conjur` account. The SaaS `/api` base suffix is
+added only when you use `--tenant`.
 
-Self-hosted plans still use the manage-authenticators REST endpoint, but they do
-not use the SaaS group-membership endpoint. Instead, generation emits
+Self-hosted plans still use the manage-authenticators REST endpoint, with an
+authenticator body that omits `subtype`. They do not use the SaaS
+group-membership endpoint. Instead, generation emits
 `api/04-grant-authenticator-access.yml` and adds a policy-load operation that
 grants generated workloads to `conjur/authn-jwt/<authenticator>/apps`.
 
@@ -271,6 +278,11 @@ CONJUR_API_KEY=<api-key> ./bin/conjur-onboard github apply \
   --username admin \
   --work-dir "$WORK_DIR"
 ```
+
+For local testing against a self-signed endpoint, add
+`--insecure-skip-tls-verify` to live `validate`, `apply`, `rollback`, or
+`express --apply` commands. This disables TLS certificate verification for the
+Conjur client and should not be used outside local test environments.
 
 ## Manual Testing
 

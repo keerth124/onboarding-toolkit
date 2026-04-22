@@ -44,6 +44,7 @@ The reusable command helpers should cover:
 - `--conjur-url`
 - `--account`
 - `--username`
+- `--insecure-skip-tls-verify`
 - `CONJUR_API_KEY` loading
 - Conjur client construction
 - Plan loading
@@ -66,6 +67,8 @@ The reusable command helpers should cover:
 - Done: `conjur-onboard github rollback` behavior remains compatible.
 - Done: Shared command code can be reused by a future `cmd/gitlab` or
   `cmd/jenkins` package.
+- Done: Shared Conjur connection flags include local-test TLS verification
+  bypass via `--insecure-skip-tls-verify`.
 - Done: Root help lists only the implemented `github` platform.
 - Done: `--work-dir` now defaults dynamically to
   `conjur-onboard-<platform>-<timestamp>` when omitted.

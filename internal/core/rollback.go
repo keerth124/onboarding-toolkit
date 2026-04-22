@@ -181,7 +181,7 @@ func inverseOperations(sourceOp Operation, entry ApplyLogEntry, plan *Plan) ([]O
 		return []Operation{{
 			ID:     "rollback-create-authenticator",
 			Method: "DELETE",
-			Path:   "/api/authenticators/" + url.PathEscape(name),
+			Path:   authenticatorDeletePath(sourceOp.Path, name),
 		}}, "", true
 	}
 
@@ -222,6 +222,21 @@ func splitMetadataList(value string) []string {
 
 func workloadDeletePath(workloadID string) string {
 	return "/api/workloads/" + url.PathEscape(workloadID)
+}
+
+func authenticatorDeletePath(createPath, name string) string {
+	namePath := url.PathEscape(name)
+	path := strings.TrimSpace(createPath)
+	if path == "" {
+		return "/api/authenticators/" + namePath
+	}
+	if !strings.HasPrefix(path, "/") {
+		path = "/" + path
+	}
+	if path == "/api/authenticators" || path == "/api/authenticators/" {
+		return "/api/authenticators/" + namePath
+	}
+	return strings.TrimRight(path, "/") + "/" + namePath
 }
 
 func skippedRollbackEntry(entry ApplyLogEntry, reason string, dryRun bool) RollbackLogEntry {

@@ -34,7 +34,8 @@ Today `internal/conjur` imports `internal/github`, accepts GitHub discovery type
 
 This slice should make the following platform-neutral:
 
-- `POST /api/authenticators` body generation for JWT authenticators.
+- Target-aware authenticator create body and operation generation for JWT
+  authenticators.
 - `api/02-workloads.yml` policy generation.
 - `api/03-add-group-members.jsonl` generation.
 - `api/04-grant-authenticator-access.yml` self-hosted fallback.
@@ -49,7 +50,9 @@ The generic generator should receive:
 - Platform ID, such as `github` or `gitlab`.
 - Human platform name, such as `GitHub Actions`.
 - Authenticator type.
-- Optional authenticator subtype.
+- Optional authenticator subtype. SaaS plans may include it, while
+  self-hosted/Enterprise plans omit it because their create-authenticator
+  request body does not include `subtype`.
 - Issuer.
 - JWKS URI.
 - Audience.

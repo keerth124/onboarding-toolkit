@@ -3,6 +3,8 @@ package shared
 import (
 	"strings"
 	"testing"
+
+	"github.com/spf13/cobra"
 )
 
 func TestGlobalFlagsWorkDirForUsesExplicitValue(t *testing.T) {
@@ -32,5 +34,21 @@ func TestConjurConnectionFlagsValidateEndpointRequired(t *testing.T) {
 	}
 	if err := (ConjurConnectionFlags{Tenant: "myco"}).ValidateEndpointRequired(); err != nil {
 		t.Fatalf("ValidateEndpointRequired() error = %v", err)
+	}
+}
+
+func TestAddConjurConnectionFlagsIncludesInsecureTLSFlag(t *testing.T) {
+	var conn ConjurConnectionFlags
+	cmd := &cobra.Command{Use: "test"}
+
+	AddConjurConnectionFlags(cmd, &conn)
+	if cmd.Flags().Lookup("insecure-skip-tls-verify") == nil {
+		t.Fatal("missing insecure-skip-tls-verify flag")
+	}
+	if err := cmd.Flags().Set("insecure-skip-tls-verify", "true"); err != nil {
+		t.Fatal(err)
+	}
+	if !conn.InsecureSkipTLSVerify {
+		t.Fatal("InsecureSkipTLSVerify was not set")
 	}
 }

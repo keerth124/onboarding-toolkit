@@ -23,10 +23,10 @@ type AuthenticatorData struct {
 	Identity AuthenticatorIdentity `json:"identity"`
 }
 
-// AuthenticatorBody is the body for POST /api/authenticators.
+// AuthenticatorBody is the body for creating a JWT authenticator.
 type AuthenticatorBody struct {
 	Type    string            `json:"type"`
-	Subtype string            `json:"subtype"`
+	Subtype string            `json:"subtype,omitempty"`
 	Name    string            `json:"name"`
 	Enabled bool              `json:"enabled"`
 	Data    AuthenticatorData `json:"data"`

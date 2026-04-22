@@ -1,6 +1,9 @@
 package conjur
 
-import "testing"
+import (
+	"net/http"
+	"testing"
+)
 
 func TestTenantAPIBaseURL(t *testing.T) {
 	got := tenantAPIBaseURL("mytenant")
@@ -29,10 +32,33 @@ func TestNormalizeConjurURLPreservesProvidedBase(t *testing.T) {
 	}
 }
 
+func TestNewHTTPClientVerifiesTLSByDefault(t *testing.T) {
+	client := newHTTPClient(false)
+	transport, ok := client.Transport.(*http.Transport)
+	if !ok {
+		t.Fatalf("transport = %T, want *http.Transport", client.Transport)
+	}
+	if transport.TLSClientConfig != nil && transport.TLSClientConfig.InsecureSkipVerify {
+		t.Fatal("TLS verification was disabled by default")
+	}
+}
+
+func TestNewHTTPClientCanSkipTLSVerification(t *testing.T) {
+	client := newHTTPClient(true)
+	transport, ok := client.Transport.(*http.Transport)
+	if !ok {
+		t.Fatalf("transport = %T, want *http.Transport", client.Transport)
+	}
+	if transport.TLSClientConfig == nil || !transport.TLSClientConfig.InsecureSkipVerify {
+		t.Fatal("TLS verification was not disabled")
+	}
+}
+
 func TestClientAPIURLStripsGeneratedAPIPrefixForSaaSBase(t *testing.T) {
 	client := &Client{
 		apiBaseURL:     tenantAPIBaseURL("mytenant"),
 		stripAPIPrefix: true,
+		account:        "conjur",
 	}
 
 	tests := map[string]string{
@@ -50,16 +76,21 @@ func TestClientAPIURLStripsGeneratedAPIPrefixForSaaSBase(t *testing.T) {
 	}
 }
 
-func TestClientAPIURLPreservesGeneratedPathsForSelfHostedBase(t *testing.T) {
+func TestClientAPIURLMapsAuthenticatorPathsForSelfHostedBase(t *testing.T) {
 	client := &Client{
 		apiBaseURL:     "https://conjur.example.com",
 		stripAPIPrefix: false,
+		account:        "conjur",
 	}
 
 	tests := map[string]string{
-		"/api/authenticators":          "https://conjur.example.com/api/authenticators",
-		"api/authenticators":           "https://conjur.example.com/api/authenticators",
-		"/policies/conjur/policy/root": "https://conjur.example.com/policies/conjur/policy/root",
+		"/api/authenticators":            "https://conjur.example.com/authenticators/conjur",
+		"api/authenticators":             "https://conjur.example.com/authenticators/conjur",
+		"/api/authenticators/name":       "https://conjur.example.com/authenticators/conjur/name",
+		"/authenticators/{account}":      "https://conjur.example.com/authenticators/conjur",
+		"/authenticators/{account}/name": "https://conjur.example.com/authenticators/conjur/name",
+		"/policies/conjur/policy/root":   "https://conjur.example.com/policies/conjur/policy/root",
+		"/api/groups/group/members":      "https://conjur.example.com/api/groups/group/members",
 	}
 
 	for input, want := range tests {
@@ -80,24 +111,27 @@ func TestNormalizeAPIPathStripsForSaaS(t *testing.T) {
 	}
 
 	for input, want := range tests {
-		if got := normalizeAPIPath(input, true); got != want {
+		if got := normalizeAPIPath(input, true, "conjur"); got != want {
 			t.Fatalf("normalizeAPIPath(%q) = %q, want %q", input, got, want)
 		}
 	}
 }
 
-func TestNormalizeAPIPathPreservesForSelfHosted(t *testing.T) {
+func TestNormalizeAPIPathMapsAuthenticatorPathsForSelfHosted(t *testing.T) {
 	tests := map[string]string{
-		"":                        "",
-		"/api":                    "/api",
-		"/api/authenticators":     "/api/authenticators",
-		"api/authenticators":      "/api/authenticators",
-		"/policies/conjur/policy": "/policies/conjur/policy",
-		"policies/conjur/policy":  "/policies/conjur/policy",
+		"":                              "",
+		"/api":                          "/api",
+		"/api/authenticators":           "/authenticators/conjur",
+		"api/authenticators":            "/authenticators/conjur",
+		"/api/authenticators/github":    "/authenticators/conjur/github",
+		"/authenticators/{account}":     "/authenticators/conjur",
+		"/authenticators/{account}/git": "/authenticators/conjur/git",
+		"/policies/conjur/policy":       "/policies/conjur/policy",
+		"policies/conjur/policy":        "/policies/conjur/policy",
 	}
 
 	for input, want := range tests {
-		if got := normalizeAPIPath(input, false); got != want {
+		if got := normalizeAPIPath(input, false, "conjur"); got != want {
 			t.Fatalf("normalizeAPIPath(%q) = %q, want %q", input, got, want)
 		}
 	}

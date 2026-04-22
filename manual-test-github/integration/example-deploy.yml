@@ -16,10 +16,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Fetch secrets from Conjur Cloud
+      - name: Fetch secrets from Conjur
         uses: cyberark/conjur-action@v2
         with:
-          url: https://my-tenant.secretsmgr.cyberark.cloud
+          url: https://localhost:443
           authn_id: github-keerth124
           host_id: data/github-apps/keerth124/keerth124/ABCStore
           secrets: |

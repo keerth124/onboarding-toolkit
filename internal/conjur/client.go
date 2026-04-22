@@ -4,6 +4,7 @@ package conjur
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
 	"encoding/base64"
 	"fmt"
 	"io"
@@ -23,6 +24,7 @@ type Client struct {
 	baseURL        string
 	apiBaseURL     string
 	stripAPIPrefix bool
+	account        string
 	token          string // base64-encoded Conjur auth token
 	verbose        bool
 	http           *http.Client
@@ -35,6 +37,7 @@ type ClientConfig struct {
 	Username  string
 	APIKey    string
 	Verbose   bool
+	InsecureSkipTLSVerify bool
 }
 
 // NewClient authenticates to a Secrets Manager SaaS tenant and returns a ready client.
@@ -58,7 +61,7 @@ func NewClientFromConfig(cfg ClientConfig) (*Client, error) {
 		return nil, err
 	}
 
-	httpClient := &http.Client{Timeout: 60 * time.Second}
+	httpClient := newHTTPClient(cfg.InsecureSkipTLSVerify)
 
 	// Authenticate: POST <api-base>/authn/{account}/{username}/authenticate
 	token, err := authenticate(httpClient, apiBaseURL, cfg.Account, cfg.Username, cfg.APIKey, cfg.Verbose)
@@ -70,10 +73,22 @@ func NewClientFromConfig(cfg ClientConfig) (*Client, error) {
 		baseURL:        baseURL,
 		apiBaseURL:     apiBaseURL,
 		stripAPIPrefix: stripAPIPrefix,
+		account:        cfg.Account,
 		token:          token,
 		verbose:        cfg.Verbose,
 		http:           httpClient,
 	}, nil
+}
+
+func newHTTPClient(insecureSkipTLSVerify bool) *http.Client {
+	transport := http.DefaultTransport.(*http.Transport).Clone()
+	if insecureSkipTLSVerify {
+		transport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true} // #nosec G402 -- explicit local-testing flag.
+	}
+	return &http.Client{
+		Timeout:   60 * time.Second,
+		Transport: transport,
+	}
 }
 
 // authenticate performs the Conjur authn-local flow and returns the base64-encoded token.
@@ -196,7 +211,7 @@ func (c *Client) doWithRetry(ctx context.Context, method, path, contentType stri
 }
 
 func (c *Client) apiURL(path string) string {
-	return c.apiBaseURL + normalizeAPIPath(path, c.stripAPIPrefix)
+	return c.apiBaseURL + normalizeAPIPath(path, c.stripAPIPrefix, c.account)
 }
 
 func tenantBaseURL(tenant string) string {
@@ -236,7 +251,7 @@ func normalizeConjurURL(raw string) (string, string, error) {
 	return parsed.String(), parsed.String(), nil
 }
 
-func normalizeAPIPath(path string, stripAPIPrefix bool) string {
+func normalizeAPIPath(path string, stripAPIPrefix bool, account string) string {
 	if path == "" {
 		return ""
 	}
@@ -244,7 +259,7 @@ func normalizeAPIPath(path string, stripAPIPrefix bool) string {
 		path = "/" + path
 	}
 	if !stripAPIPrefix {
-		return path
+		return normalizeSelfHostedAPIPath(path, account)
 	}
 	if path == "/api" {
 		return ""
@@ -253,4 +268,26 @@ func normalizeAPIPath(path string, stripAPIPrefix bool) string {
 		return strings.TrimPrefix(path, "/api")
 	}
 	return path
+}
+
+func normalizeSelfHostedAPIPath(path string, account string) string {
+	if account == "" {
+		account = "conjur"
+	}
+	accountPath := url.PathEscape(account)
+
+	switch {
+	case path == "/api/authenticators" || path == "/api/authenticators/":
+		return "/authenticators/" + accountPath
+	case strings.HasPrefix(path, "/api/authenticators/"):
+		return "/authenticators/" + accountPath + strings.TrimPrefix(path, "/api/authenticators")
+	case path == "/authenticators" || path == "/authenticators/":
+		return "/authenticators/" + accountPath
+	case path == "/authenticators/{account}":
+		return "/authenticators/" + accountPath
+	case strings.HasPrefix(path, "/authenticators/{account}/"):
+		return "/authenticators/" + accountPath + strings.TrimPrefix(path, "/authenticators/{account}")
+	default:
+		return path
+	}
 }

@@ -1,10 +1,10 @@
 # GitHub Actions Integration
 
-This directory contains a starter workflow for a GitHub Actions workload using the generated Conjur Cloud JWT authenticator.
+This directory contains a starter workflow for a GitHub Actions workload using the generated Conjur JWT authenticator.
 
 Generated values:
 
-- Tenant URL: `https://my-tenant.secretsmgr.cyberark.cloud`
+- Conjur API URL: `https://localhost:443`
 - Authenticator service ID: `github-keerth124`
 - Example workload host ID: `data/github-apps/keerth124/keerth124/ABCStore`
 - Example repository: `ABCStore`

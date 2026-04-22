@@ -1,6 +1,8 @@
 platform: github
 org: keerth124
-tenant: my-tenant
+tenant: 
+conjur_url: https://localhost:443
+conjur_target: self-hosted
 workload_auth: jwt
 provisioning_mode: bootstrap
 authenticator_name: github-keerth124

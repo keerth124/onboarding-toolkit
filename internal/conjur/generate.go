@@ -85,6 +85,9 @@ func Generate(cfg GenerateConfig) (*GenerateResult, error) {
 	if err != nil {
 		return nil, err
 	}
+	if cfg.ConjurTarget == "self-hosted" {
+		authn.Subtype = ""
+	}
 	if cfg.Platform.ID == "" && cfg.Discovery != nil {
 		cfg.Platform = cfg.Discovery.Platform
 	}
@@ -215,7 +218,7 @@ func buildPlan(cfg GenerateConfig, authn platform.Authenticator, groupID string)
 			ID:             "create-authenticator",
 			Description:    fmt.Sprintf("Create %s %s authenticator", platformName, strings.ToUpper(authn.Type)),
 			Method:         "POST",
-			Path:           "/api/authenticators",
+			Path:           createAuthenticatorPath(cfg.ConjurTarget),
 			BodyFile:       "api/01-create-authenticator.json",
 			ContentType:    "application/json",
 			ExpectedStatus: []int{200, 201},
@@ -298,6 +301,13 @@ func buildPlan(cfg GenerateConfig, authn platform.Authenticator, groupID string)
 		WorkloadCount:        len(cfg.Workloads),
 		Operations:           ops,
 	}
+}
+
+func createAuthenticatorPath(target string) string {
+	if target == "self-hosted" {
+		return "/authenticators/{account}"
+	}
+	return "/api/authenticators"
 }
 
 func removeAuthenticatorArtifact(workDir string) error {

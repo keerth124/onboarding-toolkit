@@ -62,7 +62,8 @@ Re-running apply against an already-applied state is safe (idempotent).
 
 Examples:
   CONJUR_API_KEY=xxx conjur-onboard github apply --tenant myco --username admin
-  CONJUR_API_KEY=xxx conjur-onboard github apply --conjur-url https://conjur.example.com --username admin --account myaccount`,
+  CONJUR_API_KEY=xxx conjur-onboard github apply --conjur-url https://conjur.example.com --username admin --account myaccount
+  CONJUR_API_KEY=xxx conjur-onboard github apply --conjur-url https://localhost:443 --username admin --insecure-skip-tls-verify`,
 	})
 }
 
@@ -77,7 +78,8 @@ Authentication uses the CONJUR_API_KEY environment variable.
 
 Examples:
   CONJUR_API_KEY=xxx conjur-onboard github validate --tenant myco --username admin
-  CONJUR_API_KEY=xxx conjur-onboard github validate --conjur-url https://conjur.example.com --username admin --account myaccount`,
+  CONJUR_API_KEY=xxx conjur-onboard github validate --conjur-url https://conjur.example.com --username admin --account myaccount
+  CONJUR_API_KEY=xxx conjur-onboard github validate --conjur-url https://localhost:443 --username admin --insecure-skip-tls-verify`,
 	})
 }
 

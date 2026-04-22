@@ -19,6 +19,7 @@ func newExpressCmd(flags shared.GlobalFlags) *cobra.Command {
 	var conjurTarget string
 	var username string
 	var account string
+	var insecureSkipTLSVerify bool
 	var audience string
 	var reposFromFile string
 	var provisioningMode string
@@ -150,10 +151,11 @@ Examples:
 
 			fmt.Println("==> Step 3/3: Applying to Conjur endpoint...")
 			client, err := (shared.ConjurConnectionFlags{
-				Tenant:    tenant,
-				ConjurURL: conjurURL,
-				Account:   account,
-				Username:  username,
+				Tenant:                tenant,
+				ConjurURL:             conjurURL,
+				Account:               account,
+				Username:              username,
+				InsecureSkipTLSVerify: insecureSkipTLSVerify,
 			}).NewClient(apiKey, flags.IsVerbose())
 			if err != nil {
 				return fmt.Errorf("conjur client: %w", err)
@@ -203,6 +205,7 @@ Examples:
 	cmd.Flags().StringVar(&conjurTarget, "conjur-target", "", "Conjur target: saas or self-hosted")
 	cmd.Flags().StringVar(&username, "username", "", "Conjur username (required with --apply)")
 	cmd.Flags().StringVar(&account, "account", "conjur", "Conjur account name")
+	cmd.Flags().BoolVar(&insecureSkipTLSVerify, "insecure-skip-tls-verify", false, "Skip TLS certificate verification for Conjur connections (insecure; local testing only)")
 	cmd.Flags().StringVar(&audience, "audience", "conjur-cloud", "JWT audience value")
 	cmd.Flags().StringVar(&reposFromFile, "repos-from-file", "", "Optional file with one repo name or owner/name per line")
 	cmd.Flags().StringVar(&provisioningMode, "provisioning-mode", "bootstrap", "Provisioning mode: bootstrap or workloads-only")

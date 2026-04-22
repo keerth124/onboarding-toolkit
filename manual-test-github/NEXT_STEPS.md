@@ -4,7 +4,9 @@
 
 Platform: GitHub Actions
 
-Conjur Cloud tenant: `my-tenant`
+Conjur target: `self-hosted`
+
+Conjur API URL: `https://localhost:443`
 
 Authenticator type: `jwt`
 
@@ -12,7 +14,7 @@ Authenticator name: `github-keerth124`
 
 Provisioning mode: `bootstrap`
 
-This plan creates the GitHub authenticator, workloads, and group memberships.
+This plan creates the GitHub authenticator, workloads, and group memberships. Because the self-hosted target has no group membership REST endpoint, group access is granted by loading api/04-grant-authenticator-access.yml.
 
 Workload count: `27`
 
@@ -27,30 +29,30 @@ Apps group to grant to safes: `conjur/authn-jwt/github-keerth124/apps`
 Command:
 
 ```sh
-conjur-onboard github generate --tenant my-tenant --work-dir manual-test-github
+conjur-onboard github generate --conjur-url https://localhost:443 --conjur-target self-hosted --work-dir manual-test-github
 ```
 
-Expected outcome: `api/plan.json`, `api/01-create-authenticator.json`, `api/02-workloads.yml`, `api/03-add-group-members.jsonl`, and `integration/example-deploy.yml` are present and reviewable.
+Expected outcome: `api/plan.json`, `api/01-create-authenticator.json`, `api/02-workloads.yml`, grant or membership artifacts, and `integration/example-deploy.yml` are present and reviewable.
 
-## 2. Validate Against the Tenant
+## 2. Validate Against Conjur
 
 Command:
 
 ```sh
-CONJUR_API_KEY=<api-key> conjur-onboard github validate --tenant my-tenant --username <username> --work-dir manual-test-github
+CONJUR_API_KEY=<api-key> conjur-onboard github validate --conjur-url https://localhost:443 --username <username> --work-dir manual-test-github
 ```
 
-Expected outcome: validation can read all generated bodies and reach the tenant API.
+Expected outcome: validation can read all generated bodies and reach the Conjur endpoint.
 
 ## 3. Apply the Plan
 
 Command:
 
 ```sh
-CONJUR_API_KEY=<api-key> conjur-onboard github apply --tenant my-tenant --username <username> --work-dir manual-test-github
+CONJUR_API_KEY=<api-key> conjur-onboard github apply --conjur-url https://localhost:443 --username <username> --work-dir manual-test-github
 ```
 
-Expected outcome: the authenticator is created, workload policy is loaded, and `27` workload memberships are added to `conjur%2Fauthn-jwt%2Fgithub-keerth124%2Fapps`.
+Expected outcome: the authenticator is created, workload policy is loaded, and `27` workload memberships are added to `conjur/authn-jwt/github-keerth124/apps`.
 
 ## 4. Grant Safe Access
 

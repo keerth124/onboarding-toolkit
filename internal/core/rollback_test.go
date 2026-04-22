@@ -157,6 +157,51 @@ func TestRollbackUsesExplicitRollbackKindMetadata(t *testing.T) {
 	}
 }
 
+func TestRollbackUsesSelfHostedAuthenticatorCreatePath(t *testing.T) {
+	workDir := t.TempDir()
+	writeJSONForCoreTest(t, filepath.Join(workDir, "apply-log.json"), []ApplyLogEntry{
+		{
+			OperationID: "create-authenticator",
+			Method:      "POST",
+			Path:        "/authenticators/{account}",
+			Status:      201,
+		},
+	})
+	plan := testPlan()
+	plan.ConjurTarget = "self-hosted"
+	plan.AuthenticatorSubtype = ""
+	plan.Operations = []Operation{
+		{
+			ID:     "create-authenticator",
+			Method: "POST",
+			Path:   "/authenticators/{account}",
+			Metadata: map[string]string{
+				"rollback_kind":      "authenticator",
+				"authenticator_name": "github-acme",
+			},
+		},
+	}
+	client := &fakeAPIClient{
+		deleteResponses: []fakeResponse{{status: 204}},
+	}
+
+	result, err := Rollback(context.Background(), RollbackConfig{
+		WorkDir: workDir,
+		Plan:    plan,
+		Client:  client,
+		Confirm: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.OperationsRun != 1 {
+		t.Fatalf("OperationsRun = %d, want 1", result.OperationsRun)
+	}
+	if len(client.calls) != 1 || client.calls[0].path != "/authenticators/{account}/github-acme" {
+		t.Fatalf("call = %#v, want self-hosted authenticator delete", client.calls)
+	}
+}
+
 func TestRollbackTreatsNotFoundAsSuccess(t *testing.T) {
 	workDir := prepareRollbackFiles(t)
 	client := &fakeAPIClient{

@@ -73,6 +73,8 @@ Core can still provide built-in rollback handlers for common Conjur operation ki
 - Done: `internal/core` has no hardcoded GitHub platform checks.
 - Done: GitHub validation still catches authenticator subtype and identity path
   conflicts using `authenticator_subtype` in `api/plan.json`.
+- Done: Self-hosted/Enterprise plans omit `authenticator_subtype` and use the
+  account-scoped authenticator endpoint shape for create and rollback.
 - Done: GitHub rollback tests still pass.
 - Done: Generic validation tests prove a non-GitHub plan does not require
   GitHub subtype behavior.
