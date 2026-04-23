@@ -1,0 +1,10 @@
+{
+  "version": "v1alpha1",
+  "work_dir": "conjur-onboard-work",
+  "conjur": {
+    "target": "self-hosted",
+    "conjur_url": "https://localhost:443",
+    "account": "conjur",
+    "username": "admin"
+  }
+}

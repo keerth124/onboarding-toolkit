@@ -44,19 +44,18 @@ Pass --apply to apply automatically without prompting.
 Using recommended primary identity claim: 'repository'. Environment claims are
 reported for review but not enforced by the MVP generator. To customize, re-run with:
   conjur-onboard github discover --org <owner>
-  conjur-onboard github generate --tenant <tenant> [custom flags]
-  conjur-onboard github generate --conjur-url <appliance-url> --conjur-target self-hosted [custom flags]
+  conjur-onboard github generate [custom flags]
 
 Examples:
-  conjur-onboard github express --org acme-corp --tenant myco
-  conjur-onboard github express --org acme-corp --conjur-url https://conjur.example.com
-  conjur-onboard github express --org keerth124 --tenant myco --repos-from-file repos.txt
-  conjur-onboard github express --org keerth124 --conjur-url https://conjur.example.com --repos-from-file repos.txt
-  conjur-onboard github express --org acme-corp --tenant myco --provisioning-mode workloads-only
-  conjur-onboard github express --org acme-corp --tenant myco --repos-from-file repos.txt
-  CONJUR_API_KEY=xxx conjur-onboard github express --org acme-corp --tenant myco --username admin --apply
-  CONJUR_API_KEY=xxx conjur-onboard github express --org acme-corp --conjur-url https://conjur.example.com --username admin --apply`,
+  conjur-onboard init
+  conjur-onboard github express --org acme-corp
+  conjur-onboard github express --org keerth124 --repos-from-file repos.txt
+  conjur-onboard github express --org acme-corp --provisioning-mode workloads-only
+  CONJUR_API_KEY=xxx conjur-onboard github express --org acme-corp --apply`,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := shared.ResolveConjurValues(cmd, flags, &tenant, &conjurURL, &conjurTarget, &account, &username, &insecureSkipTLSVerify); err != nil {
+				return err
+			}
 			if org == "" {
 				return fmt.Errorf("--org is required")
 			}
@@ -133,9 +132,9 @@ Examples:
 				fmt.Printf("\nReview the generated policy at %s/api/\n", wd)
 				fmt.Printf("Then run:\n")
 				if conjurURL != "" {
-					fmt.Printf("  CONJUR_API_KEY=<key> conjur-onboard github apply --conjur-url %s --username <username> --work-dir %s\n", conjurURL, wd)
+					fmt.Printf("  CONJUR_API_KEY=<key> conjur-onboard github apply --work-dir %s\n", wd)
 				} else {
-					fmt.Printf("  CONJUR_API_KEY=<key> conjur-onboard github apply --tenant %s --username <username> --work-dir %s\n", tenant, wd)
+					fmt.Printf("  CONJUR_API_KEY=<key> conjur-onboard github apply --work-dir %s\n", wd)
 				}
 				fmt.Printf("\nOr re-run express with --apply to apply automatically.\n")
 				return nil
@@ -200,12 +199,12 @@ Examples:
 
 	cmd.Flags().StringVar(&org, "org", "", "GitHub organization or user owner name (required)")
 	cmd.Flags().StringVar(&token, "token", "", "GitHub personal access token (or set GITHUB_TOKEN)")
-	cmd.Flags().StringVar(&tenant, "tenant", "", "Secrets Manager SaaS tenant subdomain")
-	cmd.Flags().StringVar(&conjurURL, "conjur-url", "", "Full Conjur appliance URL for Enterprise or self-hosted")
-	cmd.Flags().StringVar(&conjurTarget, "conjur-target", "", "Conjur target: saas or self-hosted")
-	cmd.Flags().StringVar(&username, "username", "", "Conjur username (required with --apply)")
-	cmd.Flags().StringVar(&account, "account", "conjur", "Conjur account name")
-	cmd.Flags().BoolVar(&insecureSkipTLSVerify, "insecure-skip-tls-verify", false, "Skip TLS certificate verification for Conjur connections (insecure; local testing only)")
+	cmd.Flags().StringVar(&tenant, "tenant", "", "Override SaaS tenant subdomain from config")
+	cmd.Flags().StringVar(&conjurURL, "conjur-url", "", "Override self-hosted Conjur URL from config")
+	cmd.Flags().StringVar(&conjurTarget, "conjur-target", "", "Override Conjur target from config: saas or self-hosted")
+	cmd.Flags().StringVar(&username, "username", "", "Override Conjur username from config")
+	cmd.Flags().StringVar(&account, "account", "conjur", "Override Conjur account name from config")
+	cmd.Flags().BoolVar(&insecureSkipTLSVerify, "insecure-skip-tls-verify", false, "Skip TLS certificate verification for Conjur connections")
 	cmd.Flags().StringVar(&audience, "audience", "conjur-cloud", "JWT audience value")
 	cmd.Flags().StringVar(&reposFromFile, "repos-from-file", "", "Optional file with one repo name or owner/name per line")
 	cmd.Flags().StringVar(&provisioningMode, "provisioning-mode", "bootstrap", "Provisioning mode: bootstrap or workloads-only")

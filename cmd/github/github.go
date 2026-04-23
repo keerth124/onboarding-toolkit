@@ -17,20 +17,16 @@ func NewGithubCmd(flags shared.GlobalFlags) *cobra.Command {
 identity tokens.
 
 Recommended flow:
-  conjur-onboard github express --org <owner> --tenant <subdomain>
-  conjur-onboard github express --org <owner> --conjur-url <appliance-url>
+  conjur-onboard init
+  conjur-onboard github express --org <owner>
 
 Step-by-step:
   conjur-onboard github discover --org <owner>
   conjur-onboard github inspect  --repo <owner>/<repo>
-  conjur-onboard github generate --tenant <subdomain>
-  conjur-onboard github generate --conjur-url <appliance-url> --conjur-target self-hosted
-  conjur-onboard github validate --tenant <subdomain>
-  conjur-onboard github validate --conjur-url <appliance-url>
-  conjur-onboard github apply    --tenant <subdomain>
-  conjur-onboard github apply    --conjur-url <appliance-url>
-  conjur-onboard github rollback --tenant <subdomain> --confirm
-  conjur-onboard github rollback --conjur-url <appliance-url> --confirm`,
+  conjur-onboard github generate
+  conjur-onboard github validate
+  conjur-onboard github apply
+  conjur-onboard github rollback --confirm`,
 	}
 
 	cmd.AddCommand(newDiscoverCmd(flags))
@@ -61,9 +57,8 @@ On partial failure, apply stops at the first error and prints the rollback comma
 Re-running apply against an already-applied state is safe (idempotent).
 
 Examples:
-  CONJUR_API_KEY=xxx conjur-onboard github apply --tenant myco --username admin
-  CONJUR_API_KEY=xxx conjur-onboard github apply --conjur-url https://conjur.example.com --username admin --account myaccount
-  CONJUR_API_KEY=xxx conjur-onboard github apply --conjur-url https://localhost:443 --username admin --insecure-skip-tls-verify`,
+  CONJUR_API_KEY=xxx conjur-onboard github apply
+  CONJUR_API_KEY=xxx conjur-onboard github apply --username host/data/github-apps/acme/tooling`,
 	})
 }
 
@@ -77,9 +72,8 @@ endpoint is reachable with the provided tool-auth credentials.
 Authentication uses the CONJUR_API_KEY environment variable.
 
 Examples:
-  CONJUR_API_KEY=xxx conjur-onboard github validate --tenant myco --username admin
-  CONJUR_API_KEY=xxx conjur-onboard github validate --conjur-url https://conjur.example.com --username admin --account myaccount
-  CONJUR_API_KEY=xxx conjur-onboard github validate --conjur-url https://localhost:443 --username admin --insecure-skip-tls-verify`,
+  CONJUR_API_KEY=xxx conjur-onboard github validate
+  CONJUR_API_KEY=xxx conjur-onboard github validate --username host/data/github-apps/acme/tooling`,
 	})
 }
 
@@ -95,8 +89,7 @@ workloads, and deletes the authenticator only when this plan created it.
 Rollback requires --confirm unless --dry-run is set.
 
 Examples:
-  CONJUR_API_KEY=xxx conjur-onboard github rollback --tenant myco --username admin --confirm
-  CONJUR_API_KEY=xxx conjur-onboard github rollback --conjur-url https://conjur.example.com --username admin --account myaccount --confirm
-  conjur-onboard github rollback --tenant myco --dry-run`,
+  CONJUR_API_KEY=xxx conjur-onboard github rollback --confirm
+  conjur-onboard github rollback --dry-run`,
 	})
 }

@@ -33,6 +33,9 @@ func NewApplyCmd(flags GlobalFlags, opts ApplyCommandOptions) *cobra.Command {
 		Short: "Execute the generated API plan against a Conjur endpoint",
 		Long:  opts.Long,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := ResolveConjurConnection(cmd, flags, &conn); err != nil {
+				return err
+			}
 			if err := conn.ValidateEndpointRequired(); err != nil {
 				return err
 			}
@@ -102,6 +105,9 @@ func NewValidateCmd(flags GlobalFlags, opts ValidateCommandOptions) *cobra.Comma
 		Short: "Run non-mutating checks against a generated API plan",
 		Long:  opts.Long,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := ResolveConjurConnection(cmd, flags, &conn); err != nil {
+				return err
+			}
 			if err := conn.ValidateEndpointRequired(); err != nil {
 				return err
 			}
@@ -167,6 +173,9 @@ func NewRollbackCmd(flags GlobalFlags, opts RollbackCommandOptions) *cobra.Comma
 		Short: "Reverse successful operations from apply-log.json",
 		Long:  opts.Long,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := ResolveConjurConnection(cmd, flags, &conn); err != nil {
+				return err
+			}
 			if err := conn.ValidateEndpointRequired(); err != nil {
 				return err
 			}

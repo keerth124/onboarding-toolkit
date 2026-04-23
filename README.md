@@ -59,6 +59,49 @@ and CLI wiring.
   - Conjur username.
   - Conjur API key in `CONJUR_API_KEY`.
 
+## Initialize Global Config
+
+Run `init` once to create `conjur-onboard.json` with shared Conjur settings and
+the default work directory:
+
+```sh
+conjur-onboard init
+```
+
+You can also prepopulate the file instead of running the interactive prompt:
+
+```json
+{
+  "version": "v1alpha1",
+  "work_dir": "conjur-onboard-work",
+  "conjur": {
+    "target": "saas",
+    "tenant": "my-tenant",
+    "account": "conjur",
+    "username": "host/data/github-apps/tooling"
+  }
+}
+```
+
+Self-hosted config uses `conjur_url` instead of `tenant`:
+
+```json
+{
+  "version": "v1alpha1",
+  "work_dir": "conjur-onboard-work",
+  "conjur": {
+    "target": "self-hosted",
+    "conjur_url": "https://conjur.example.com",
+    "account": "conjur",
+    "username": "admin"
+  }
+}
+```
+
+Command-line flags still override config values. For example, `--tenant`
+switches a single command to SaaS and `--conjur-url` switches a single command
+to self-hosted Conjur.
+
 For complete discovery of repositories owned by your own GitHub user account,
 authenticate `gh` with:
 
@@ -109,7 +152,7 @@ Then run:
 
 ```sh
 conjur-onboard jenkins discover --url https://jenkins.example.com --jobs-from-file jobs.txt
-conjur-onboard jenkins generate --tenant myco
+conjur-onboard jenkins generate
 ```
 
 When using Jenkins API discovery on a large controller, `generate` requires an
@@ -148,31 +191,33 @@ go run . github --help
 
 ## GitHub SaaS Quickstart
 
-Use a stable work directory so each step reads the artifacts from the previous
-step.
+Initialize config once so each step uses the same Conjur endpoint and work
+directory:
+
+```sh
+conjur-onboard init --target saas --tenant my-tenant --work-dir ./manual-test-github
+```
 
 macOS or Linux:
 
 ```sh
-export WORK_DIR=./manual-test-github
 export GITHUB_TOKEN=<github-token>
 
-./bin/conjur-onboard github discover --org acme-corp --work-dir "$WORK_DIR"
-./bin/conjur-onboard github inspect --repo acme-corp/api-service --work-dir "$WORK_DIR"
-./bin/conjur-onboard github generate --tenant my-tenant --work-dir "$WORK_DIR"
-./bin/conjur-onboard github validate --tenant my-tenant --dry-run --work-dir "$WORK_DIR"
+./bin/conjur-onboard github discover --org acme-corp
+./bin/conjur-onboard github inspect --repo acme-corp/api-service
+./bin/conjur-onboard github generate
+./bin/conjur-onboard github validate --dry-run
 ```
 
 Windows PowerShell:
 
 ```powershell
-$env:WORK_DIR = ".\manual-test-github"
 $env:GITHUB_TOKEN = "<github-token>"
 
-.\bin\conjur-onboard.exe github discover --org acme-corp --work-dir $env:WORK_DIR
-.\bin\conjur-onboard.exe github inspect --repo acme-corp/api-service --work-dir $env:WORK_DIR
-.\bin\conjur-onboard.exe github generate --tenant my-tenant --work-dir $env:WORK_DIR
-.\bin\conjur-onboard.exe github validate --tenant my-tenant --dry-run --work-dir $env:WORK_DIR
+.\bin\conjur-onboard.exe github discover --org acme-corp
+.\bin\conjur-onboard.exe github inspect --repo acme-corp/api-service
+.\bin\conjur-onboard.exe github generate
+.\bin\conjur-onboard.exe github validate --dry-run
 ```
 
 Review these generated files before applying:
@@ -212,10 +257,7 @@ macOS or Linux:
 ```sh
 export CONJUR_API_KEY=<conjur-api-key>
 
-./bin/conjur-onboard github validate \
-  --tenant my-tenant \
-  --username admin \
-  --work-dir "$WORK_DIR"
+./bin/conjur-onboard github validate
 ```
 
 Windows PowerShell:
@@ -223,10 +265,7 @@ Windows PowerShell:
 ```powershell
 $env:CONJUR_API_KEY = "<conjur-api-key>"
 
-.\bin\conjur-onboard.exe github validate `
-  --tenant my-tenant `
-  --username admin `
-  --work-dir $env:WORK_DIR
+.\bin\conjur-onboard.exe github validate
 ```
 
 Apply:
@@ -234,19 +273,13 @@ Apply:
 macOS or Linux:
 
 ```sh
-./bin/conjur-onboard github apply \
-  --tenant my-tenant \
-  --username admin \
-  --work-dir "$WORK_DIR"
+./bin/conjur-onboard github apply
 ```
 
 Windows PowerShell:
 
 ```powershell
-.\bin\conjur-onboard.exe github apply `
-  --tenant my-tenant `
-  --username admin `
-  --work-dir $env:WORK_DIR
+.\bin\conjur-onboard.exe github apply
 ```
 
 Rollback, if needed:
@@ -254,21 +287,13 @@ Rollback, if needed:
 macOS or Linux:
 
 ```sh
-./bin/conjur-onboard github rollback \
-  --tenant my-tenant \
-  --username admin \
-  --work-dir "$WORK_DIR" \
-  --confirm
+./bin/conjur-onboard github rollback --confirm
 ```
 
 Windows PowerShell:
 
 ```powershell
-.\bin\conjur-onboard.exe github rollback `
-  --tenant my-tenant `
-  --username admin `
-  --work-dir $env:WORK_DIR `
-  --confirm
+.\bin\conjur-onboard.exe github rollback --confirm
 ```
 
 Rollback deletes generated workloads and removes generated group memberships. It
@@ -282,9 +307,7 @@ organization.
 
 ```sh
 ./bin/conjur-onboard github generate \
-  --tenant my-tenant \
-  --provisioning-mode workloads-only \
-  --work-dir "$WORK_DIR"
+  --provisioning-mode workloads-only
 ```
 
 If the existing authenticator does not use the default `github-<org>` name, pass
@@ -292,10 +315,8 @@ an override:
 
 ```sh
 ./bin/conjur-onboard github generate \
-  --tenant my-tenant \
   --provisioning-mode workloads-only \
-  --authenticator-name existing-authenticator-name \
-  --work-dir "$WORK_DIR"
+  --authenticator-name existing-authenticator-name
 ```
 
 ## Self-Hosted Or Enterprise Endpoint

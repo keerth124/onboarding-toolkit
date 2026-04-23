@@ -16,16 +16,17 @@ func NewJenkinsCmd(flags shared.GlobalFlags) *cobra.Command {
 CyberArk Conjur Jenkins plugin.
 
 Recommended flow:
+  conjur-onboard init
   conjur-onboard jenkins discover --url <jenkins-url> --jobs-from-file jobs.txt
-  conjur-onboard jenkins generate --tenant <subdomain>
+  conjur-onboard jenkins generate
 
 Step-by-step:
   conjur-onboard jenkins discover --url <jenkins-url> --jobs-from-file jobs.txt
   conjur-onboard jenkins inspect --job <folder/job>
-  conjur-onboard jenkins generate --tenant <subdomain>
-  conjur-onboard jenkins validate --tenant <subdomain>
-  conjur-onboard jenkins apply    --tenant <subdomain>
-  conjur-onboard jenkins rollback --tenant <subdomain> --confirm`,
+  conjur-onboard jenkins generate
+  conjur-onboard jenkins validate
+  conjur-onboard jenkins apply
+  conjur-onboard jenkins rollback --confirm`,
 	}
 
 	cmd.AddCommand(newDiscoverCmd(flags))
@@ -48,8 +49,8 @@ against the target Conjur endpoint in order.
 Authentication uses the CONJUR_API_KEY environment variable.
 
 Examples:
-  CONJUR_API_KEY=xxx conjur-onboard jenkins apply --tenant myco --username admin
-  CONJUR_API_KEY=xxx conjur-onboard jenkins apply --conjur-url https://conjur.example.com --username admin --account myaccount`,
+  CONJUR_API_KEY=xxx conjur-onboard jenkins apply
+  CONJUR_API_KEY=xxx conjur-onboard jenkins apply --username host/data/jenkins-apps/tooling`,
 	})
 }
 
@@ -63,8 +64,8 @@ endpoint is reachable with the provided tool-auth credentials.
 Authentication uses the CONJUR_API_KEY environment variable.
 
 Examples:
-  CONJUR_API_KEY=xxx conjur-onboard jenkins validate --tenant myco --username admin
-  CONJUR_API_KEY=xxx conjur-onboard jenkins validate --conjur-url https://conjur.example.com --username admin --account myaccount`,
+  CONJUR_API_KEY=xxx conjur-onboard jenkins validate
+  CONJUR_API_KEY=xxx conjur-onboard jenkins validate --username host/data/jenkins-apps/tooling`,
 	})
 }
 
@@ -77,7 +78,7 @@ then runs inverse operations in reverse order.
 Rollback requires --confirm unless --dry-run is set.
 
 Examples:
-  CONJUR_API_KEY=xxx conjur-onboard jenkins rollback --tenant myco --username admin --confirm
-  conjur-onboard jenkins rollback --tenant myco --dry-run`,
+  CONJUR_API_KEY=xxx conjur-onboard jenkins rollback --confirm
+  conjur-onboard jenkins rollback --dry-run`,
 	})
 }

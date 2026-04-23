@@ -33,11 +33,14 @@ func newGenerateCmd(flags shared.GlobalFlags) *cobra.Command {
   NEXT_STEPS.md                      Human-readable walkthrough
 
 Examples:
-  conjur-onboard github generate --tenant myco
-  conjur-onboard github generate --conjur-url https://conjur.example.com --conjur-target self-hosted
-  conjur-onboard github generate --tenant myco --provisioning-mode workloads-only
-  conjur-onboard github generate --tenant myco --audience my-audience`,
+  conjur-onboard init
+  conjur-onboard github generate
+  conjur-onboard github generate --provisioning-mode workloads-only
+  conjur-onboard github generate --audience my-audience`,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := shared.ResolveConjurGenerate(cmd, flags, &tenant, &conjurURL, &conjurTarget); err != nil {
+				return err
+			}
 			if tenant == "" && conjurURL == "" {
 				return fmt.Errorf("--tenant or --conjur-url is required")
 			}
@@ -86,18 +89,14 @@ Examples:
 			fmt.Printf("  Workloads     : %d\n", plan.WorkloadCount)
 			fmt.Printf("  Artifacts in  : %s/api/\n", wd)
 			fmt.Printf("\nReview the generated policy, then run:\n")
-			if conjurURL != "" {
-				fmt.Printf("  conjur-onboard github apply --conjur-url %s\n", conjurURL)
-			} else {
-				fmt.Printf("  conjur-onboard github apply --tenant %s\n", tenant)
-			}
+			fmt.Printf("  CONJUR_API_KEY=<key> conjur-onboard github apply\n")
 			return nil
 		},
 	}
 
-	cmd.Flags().StringVar(&tenant, "tenant", "", "Secrets Manager SaaS tenant subdomain")
-	cmd.Flags().StringVar(&conjurURL, "conjur-url", "", "Full Conjur appliance URL for Enterprise or self-hosted")
-	cmd.Flags().StringVar(&conjurTarget, "conjur-target", "", "Conjur target: saas or self-hosted")
+	cmd.Flags().StringVar(&tenant, "tenant", "", "Override SaaS tenant subdomain from config")
+	cmd.Flags().StringVar(&conjurURL, "conjur-url", "", "Override self-hosted Conjur URL from config")
+	cmd.Flags().StringVar(&conjurTarget, "conjur-target", "", "Override Conjur target from config: saas or self-hosted")
 	cmd.Flags().StringVar(&audience, "audience", "conjur-cloud", "JWT audience value")
 	cmd.Flags().StringVar(&provisioningMode, "provisioning-mode", "bootstrap", "Provisioning mode: bootstrap or workloads-only")
 	cmd.Flags().StringVar(&authenticatorName, "authenticator-name", "", "Existing authenticator name override for workloads-only mode")

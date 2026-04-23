@@ -33,11 +33,14 @@ selection unless discovery used --jobs-from-file. Use --include, --exclude,
 --include-type, or --all.
 
 Examples:
-  conjur-onboard jenkins generate --tenant myco
-  conjur-onboard jenkins generate --tenant myco --include "Payments/**" --exclude "Payments/sandbox/**"
-  conjur-onboard jenkins generate --tenant myco --include-type folder,multibranch
-  conjur-onboard jenkins generate --conjur-url https://conjur.example.com --conjur-target self-hosted`,
+  conjur-onboard init
+  conjur-onboard jenkins generate --include "Payments/**" --exclude "Payments/sandbox/**"
+  conjur-onboard jenkins generate --include-type folder,multibranch
+  conjur-onboard jenkins generate --all`,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := shared.ResolveConjurGenerate(cmd, flags, &tenant, &conjurURL, &conjurTarget); err != nil {
+				return err
+			}
 			if tenant == "" && conjurURL == "" {
 				return fmt.Errorf("--tenant or --conjur-url is required")
 			}
@@ -96,9 +99,9 @@ Examples:
 		},
 	}
 
-	cmd.Flags().StringVar(&tenant, "tenant", "", "Secrets Manager SaaS tenant subdomain")
-	cmd.Flags().StringVar(&conjurURL, "conjur-url", "", "Full Conjur appliance URL for Enterprise or self-hosted")
-	cmd.Flags().StringVar(&conjurTarget, "conjur-target", "", "Conjur target: saas or self-hosted")
+	cmd.Flags().StringVar(&tenant, "tenant", "", "Override SaaS tenant subdomain from config")
+	cmd.Flags().StringVar(&conjurURL, "conjur-url", "", "Override self-hosted Conjur URL from config")
+	cmd.Flags().StringVar(&conjurTarget, "conjur-target", "", "Override Conjur target from config: saas or self-hosted")
 	cmd.Flags().StringVar(&audience, "audience", jenkinsdisc.DefaultAudience, "JWT audience value")
 	cmd.Flags().StringVar(&provisioningMode, "provisioning-mode", "bootstrap", "Provisioning mode: bootstrap or workloads-only")
 	cmd.Flags().StringVar(&authenticatorName, "authenticator-name", "", "Existing authenticator name override for workloads-only mode")
