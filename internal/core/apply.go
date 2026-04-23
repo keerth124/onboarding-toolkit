@@ -105,7 +105,7 @@ func Apply(ctx context.Context, cfg ApplyConfig) (*ApplyResult, error) {
 		}
 		if !containsStatus(op.ExpectedStatus, status) && !containsStatus(op.IdempotentOn, status) {
 			_ = writeApplyLog(cfg.WorkDir, log)
-			return nil, fmt.Errorf("%s: unexpected HTTP %d: %s", op.ID, status, string(response))
+			return nil, fmt.Errorf("%s: %w", op.ID, conjurHTTPError("Conjur operation", status, response, operationHTTPHint(status)))
 		}
 
 		if strings.HasPrefix(op.ID, "add-group-member-") && !entry.NoChange {
@@ -119,6 +119,19 @@ func Apply(ctx context.Context, cfg ApplyConfig) (*ApplyResult, error) {
 		return nil, err
 	}
 	return result, nil
+}
+
+func operationHTTPHint(status int) string {
+	switch status {
+	case 401:
+		return "check CONJUR_API_KEY and --username; API key auth requires the Conjur API key, not the UI password"
+	case 403:
+		return "the authenticated identity lacks permission for this operation"
+	case 404:
+		return "check the generated plan path, target mode, and whether the parent policy branch exists"
+	default:
+		return ""
+	}
 }
 
 func metadataInt(metadata map[string]string, key string) int {

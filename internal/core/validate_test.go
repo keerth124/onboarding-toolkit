@@ -96,6 +96,9 @@ func TestValidateReportsForbiddenPermissionHint(t *testing.T) {
 	if !strings.Contains(err.Error(), "Authn_Admins") {
 		t.Fatalf("err = %q, want Authn_Admins hint", err.Error())
 	}
+	if !strings.Contains(err.Error(), `{"error":"forbidden"}`) {
+		t.Fatalf("err = %q, want Conjur response body", err.Error())
+	}
 
 	var log []ValidateLogEntry
 	readJSONForCoreTest(t, filepath.Join(workDir, "validate-log.json"), &log)
@@ -104,6 +107,27 @@ func TestValidateReportsForbiddenPermissionHint(t *testing.T) {
 	}
 	if log[2].Status != 403 {
 		t.Fatalf("tenant status = %d, want 403", log[2].Status)
+	}
+}
+
+func TestValidateReportsUnauthorizedResponseAndHint(t *testing.T) {
+	workDir := preparePlanFiles(t)
+	client := &fakeAPIClient{
+		getResponses: []fakeResponse{{status: 401, body: `{"error":"bad token"}`}},
+	}
+
+	_, err := Validate(context.Background(), ValidateConfig{
+		WorkDir: workDir,
+		Plan:    testPlan(),
+		Client:  client,
+	})
+	if err == nil {
+		t.Fatal("expected unauthorized error")
+	}
+	for _, want := range []string{"HTTP 401 Unauthorized", `{"error":"bad token"}`, "not the UI password"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Fatalf("err = %q, want %q", err.Error(), want)
+		}
 	}
 }
 

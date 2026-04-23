@@ -89,11 +89,11 @@ func Validate(ctx context.Context, cfg ValidateConfig) (*ValidateResult, error) 
 	}
 	if status == 401 {
 		_ = WriteJSON(cfg.WorkDir, "validate-log.json", log)
-		return nil, fmt.Errorf("Conjur authentication failed while validating plan")
+		return nil, conjurHTTPError("Conjur authentication failed while validating plan", status, body, "check CONJUR_API_KEY and --username; API key auth requires the Conjur API key, not the UI password")
 	}
 	if status == 403 {
 		_ = WriteJSON(cfg.WorkDir, "validate-log.json", log)
-		return nil, fmt.Errorf("Conjur identity lacks permission to list authenticators; check Authn_Admins membership")
+		return nil, conjurHTTPError("Conjur identity lacks permission to list authenticators", status, body, "check Authn_Admins membership")
 	}
 	if status >= 400 {
 		result.Warnings = append(result.Warnings, fmt.Sprintf("Conjur endpoint reachability returned HTTP %d; apply may still fail if API path differs", status))
@@ -128,11 +128,11 @@ func Validate(ctx context.Context, cfg ValidateConfig) (*ValidateResult, error) 
 	}
 	if status == 401 {
 		_ = WriteJSON(cfg.WorkDir, "validate-log.json", log)
-		return nil, fmt.Errorf("Conjur authentication failed while validating authenticator %q", cfg.Plan.AuthenticatorName)
+		return nil, conjurHTTPError(fmt.Sprintf("Conjur authentication failed while validating authenticator %q", cfg.Plan.AuthenticatorName), status, body, "check CONJUR_API_KEY and --username; API key auth requires the Conjur API key, not the UI password")
 	}
 	if status == 403 {
 		_ = WriteJSON(cfg.WorkDir, "validate-log.json", log)
-		return nil, fmt.Errorf("Conjur identity lacks permission to inspect authenticator %q; check Authn_Admins membership", cfg.Plan.AuthenticatorName)
+		return nil, conjurHTTPError(fmt.Sprintf("Conjur identity lacks permission to inspect authenticator %q", cfg.Plan.AuthenticatorName), status, body, "check Authn_Admins membership")
 	}
 
 	switch {
@@ -151,7 +151,7 @@ func Validate(ctx context.Context, cfg ValidateConfig) (*ValidateResult, error) 
 		}
 	case status >= 400:
 		_ = WriteJSON(cfg.WorkDir, "validate-log.json", log)
-		return nil, fmt.Errorf("authenticator %q validation returned HTTP %d: %s", cfg.Plan.AuthenticatorName, status, strings.TrimSpace(string(body)))
+		return nil, conjurHTTPError(fmt.Sprintf("authenticator %q validation", cfg.Plan.AuthenticatorName), status, body, "")
 	}
 
 	if err := WriteJSON(cfg.WorkDir, "validate-log.json", log); err != nil {

@@ -78,8 +78,9 @@ func init() {
 
 func newPlatformsCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   "platforms",
-		Short: "List supported onboarding platforms",
+		Use:     "platforms",
+		Aliases: []string{"platform"},
+		Short:   "List supported onboarding platforms",
 		Long: `List supported platform commands.
 
 Platform commands are kept out of the top-level help so the initial screen stays

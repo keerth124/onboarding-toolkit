@@ -2,6 +2,8 @@ package conjur
 
 import (
 	"net/http"
+	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -51,6 +53,32 @@ func TestNewHTTPClientCanSkipTLSVerification(t *testing.T) {
 	}
 	if transport.TLSClientConfig == nil || !transport.TLSClientConfig.InsecureSkipVerify {
 		t.Fatal("TLS verification was not disabled")
+	}
+}
+
+func TestAuthenticateFailureIncludesConjurResponseAndHint(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusUnauthorized)
+		_, _ = w.Write([]byte(`{"error":"invalid credentials"}`))
+	}))
+	defer server.Close()
+
+	_, err := authenticate(server.Client(), server.URL, "conjur", "admin", "not-an-api-key", false)
+	if err == nil {
+		t.Fatal("expected authentication error")
+	}
+	msg := err.Error()
+	for _, want := range []string{"HTTP 401 Unauthorized", `{"error":"invalid credentials"}`, "not the UI password"} {
+		if !strings.Contains(msg, want) {
+			t.Fatalf("err = %q, want %q", msg, want)
+		}
+	}
+}
+
+func TestAuthHTTPErrorReportsEmptyResponse(t *testing.T) {
+	got := authHTTPError(http.StatusUnauthorized, nil)
+	if !strings.Contains(got, "<empty response>") {
+		t.Fatalf("authHTTPError() = %q, want empty response marker", got)
 	}
 }
 

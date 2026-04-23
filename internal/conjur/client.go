@@ -31,12 +31,12 @@ type Client struct {
 }
 
 type ClientConfig struct {
-	Tenant    string
-	ConjurURL string
-	Account   string
-	Username  string
-	APIKey    string
-	Verbose   bool
+	Tenant                string
+	ConjurURL             string
+	Account               string
+	Username              string
+	APIKey                string
+	Verbose               bool
 	InsecureSkipTLSVerify bool
 }
 
@@ -120,12 +120,38 @@ func authenticate(client *http.Client, apiBaseURL, account, username, apiKey str
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("authentication failed (HTTP %d): %s", resp.StatusCode, string(raw))
+		return "", fmt.Errorf("authentication failed: %s", authHTTPError(resp.StatusCode, raw))
 	}
 
 	// Conjur expects the token base64-encoded in the Authorization header.
 	encoded := base64.StdEncoding.EncodeToString(raw)
 	return encoded, nil
+}
+
+func authHTTPError(status int, body []byte) string {
+	detail := responseDetail(body)
+	switch status {
+	case http.StatusUnauthorized:
+		return fmt.Sprintf("HTTP %d %s; response: %s; hint: the authenticate endpoint expects the Conjur API key for the requested username, not the UI password", status, http.StatusText(status), detail)
+	case http.StatusForbidden:
+		return fmt.Sprintf("HTTP %d %s; response: %s; hint: the user authenticated but is not permitted to perform this operation", status, http.StatusText(status), detail)
+	case http.StatusNotFound:
+		return fmt.Sprintf("HTTP %d %s; response: %s; hint: check --conjur-url, --account, and whether the URL should include a path prefix", status, http.StatusText(status), detail)
+	default:
+		return fmt.Sprintf("HTTP %d %s; response: %s", status, http.StatusText(status), detail)
+	}
+}
+
+func responseDetail(body []byte) string {
+	text := strings.TrimSpace(string(body))
+	if text == "" {
+		return "<empty response>"
+	}
+	const limit = 2000
+	if len(text) > limit {
+		return text[:limit] + "...<truncated>"
+	}
+	return text
 }
 
 // Post sends an authenticated POST to the given path with the given body.
