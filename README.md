@@ -410,3 +410,13 @@ platforms, see [docs/platform-modularity/README.md](docs/platform-modularity/REA
   the appropriate safe after apply.
 - Validation is conservative until the exact SaaS API endpoint shapes for every
   preflight check are confirmed.
+
+## Disclaimer
+
+**Use at your own risk.** The authors are not responsible for any damages or losses arising from the use of this tool.
+This repository was built with the assistance of Claude Code and Codex. 
+
+Please be aware that:
+- AI-Generated Content: Significant portions of this codebase were generated or refactored by AI agents.
+- No Warranty: The code is provided "as is" without warranty of any kind. It may contain bugs, security vulnerabilities, or suboptimal implementations.
+- Human Oversight: While AI assisted in development, all final code should be reviewed and tested in a safe environment before production use.
